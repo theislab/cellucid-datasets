@@ -180,11 +180,34 @@ async function findPublishedDatasetStateArtifacts(directory) {
         || entry.name === 'state-snapshots.json'
       )
     ) {
-      published.push(path.relative(EXPORTS_ROOT, absolute));
+      published.push(toRepositoryRelativePath(EXPORTS_ROOT, absolute));
     }
   }
   return published.sort();
 }
+
+function toRepositoryRelativePath(root, absolute, pathApi = path) {
+  return pathApi.relative(root, absolute).split(pathApi.sep).join('/');
+}
+
+test('state artifact inventory uses portable repository paths', () => {
+  assert.equal(
+    toRepositoryRelativePath(
+      'D:\\workspace\\exports',
+      'D:\\workspace\\exports\\suo\\default.cellucid-session',
+      path.win32,
+    ),
+    'suo/default.cellucid-session',
+  );
+  assert.equal(
+    toRepositoryRelativePath(
+      '/workspace/exports',
+      '/workspace/exports/suo/state-snapshots.json',
+      path.posix,
+    ),
+    'suo/state-snapshots.json',
+  );
+});
 
 test('sample presets are exact generation sidecars with no top-level session store', async () => {
   await assert.rejects(
