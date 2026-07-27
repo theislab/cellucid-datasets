@@ -1,0 +1,38 @@
+name: Dataset contracts
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ["20", "22", "24", "26"]
+
+    steps:
+      - name: Check out the exact source
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+
+      - name: Validate the complete catalog and repository layout
+        run: >-
+          node --test
+          tests/catalog-contract.test.mjs
+          tests/repository-organization-contract.test.mjs
+          tests/session-presets-contract.test.mjs

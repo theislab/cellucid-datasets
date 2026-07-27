@@ -1,0 +1,465 @@
+{
+  "schema_version": 2,
+  "dataset_id": "pancreas",
+  "source": {
+    "repository": "https://github.com/theislab/scvelo_notebooks",
+    "commit": "f6cad69fd509be44c8453205309f4c3c3c37ba34",
+    "committed_at": "2019-10-23T16:50:17Z",
+    "url": "https://raw.githubusercontent.com/theislab/scvelo_notebooks/f6cad69fd509be44c8453205309f4c3c3c37ba34/data/Pancreas/endocrinogenesis_day15.h5ad",
+    "sha256": "9e3e459eca00ba06b496ec80def32941b5b2889918720e3e7aa6ffb811fbe7c6",
+    "size_bytes": 52477898,
+    "documentation_url": "https://scvelo.readthedocs.io/en/stable/vignettes/Pancreas.html",
+    "geo_accession": "GSE132188",
+    "geo_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE132188"
+  },
+  "citation": {
+    "doi": "10.1242/dev.173849",
+    "pmid": "31160421",
+    "text": "Bastidas-Ponce A, Tritschler S, Dony L, Scheibner K, Tarquis-Medina M, Salinno C, Schirge S, Burtscher I, Böttcher A, Theis FJ, Lickert H, Bakhti M. Comprehensive single cell mRNA profiling reveals a detailed roadmap for pancreatic endocrinogenesis. Development. 2019;146(12):dev173849. doi:10.1242/dev.173849."
+  },
+  "ownership": {
+    "source_owned": [
+      "X expression and spliced/unspliced count layers",
+      "ordered cell and gene identifiers",
+      "all four obs columns and their category order",
+      "the highly_variable_genes var column",
+      "X_pca latent coordinates",
+      "X_umap two-dimensional coordinates",
+      "the weighted source connectivity graph"
+    ],
+    "derived": [
+      "the analysis-only 2,000-gene velocity working copy",
+      "the independently optimized one-dimensional UMAP",
+      "the independently optimized three-dimensional UMAP",
+      "stochastic velocity parameters and graph",
+      "velocity projections for the exact 1D, source-owned 2D, and derived 3D embeddings",
+      "the public cell_type convenience alias, exactly equal to the source-owned clusters categories and codes"
+    ]
+  },
+  "build_environment": {
+    "requirements_lock": "requirements-pancreas.lock",
+    "requirements_lock_sha256": "512723c0ad32bb520d1581abdf97ff1ac6c61a85b5eccefdeb539d2062c8ec10",
+    "python_version": "3.12.13",
+    "implementation": "CPython",
+    "platform_system": "Darwin",
+    "platform_machine": "arm64",
+    "zlib_runtime_version": "1.2.12",
+    "blas": {
+      "internal_api": "openblas",
+      "version": "0.3.23.dev",
+      "architecture": "armv8",
+      "threading_layer": "pthreads"
+    },
+    "thread_environment": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1",
+      "NUMBA_NUM_THREADS": "1"
+    },
+    "python_hash_seed": "0",
+    "root_random_seed": 0,
+    "cellucid_producer": {
+      "repository": "https://github.com/theislab/cellucid-python",
+      "version": "0.9.1",
+      "source_tree_manifest_sha256": "4fa5024ce5878655bad027f421b4e62ea3ef07f7eb1238fe0604712ca92ef042",
+      "manifest_definition": "SHA-256 of the LC_ALL=C path-sorted `shasum -a 256` manifest over pyproject.toml, MANIFEST.in, and every non-__pycache__ file under src/cellucid, using repository-relative POSIX paths.",
+      "key_files": [
+        {
+          "path": "src/cellucid/prepare_data.py",
+          "sha256": "117d71a528bd46ccb0c303cca3c75f996c3704bb4f400b1ac3438acd02b78121"
+        },
+        {
+          "path": "src/cellucid/_compression.py",
+          "sha256": "017d8250dab7e69cdf70f6d5b3ff764d91292151814bcdffec01ba28dec28e39"
+        },
+        {
+          "path": "src/cellucid/anndata_adapter.py",
+          "sha256": "ecceedf97eccfbdfc10d034f42905896b7c2114e468b3ae51d5d8d022ac48490"
+        }
+      ]
+    },
+    "packages": {
+      "anndata": "0.12.19",
+      "h5py": "3.16.0",
+      "numba": "0.66.0",
+      "numpy": "1.26.4",
+      "pandas": "2.3.3",
+      "pynndescent": "0.6.0",
+      "scanpy": "1.11.5",
+      "scikit-learn": "1.9.0",
+      "scipy": "1.16.3",
+      "scvelo": "0.3.4",
+      "threadpoolctl": "3.6.0",
+      "umap-learn": "0.5.12"
+    }
+  },
+  "warning_contract": {
+    "all_unlisted_warnings_are_errors": true,
+    "legacy_h5ad_read": {
+      "count": 27,
+      "old_format_warning_count": 25,
+      "future_warning_count": 2,
+      "messages_in_order": [
+        "Element '/X' was written without encoding metadata.",
+        "Element '/layers' was written without encoding metadata.",
+        "Element '/layers/spliced' was written without encoding metadata.",
+        "Element '/layers/unspliced' was written without encoding metadata.",
+        "'/obs' was written with a very old version of AnnData. Consider rewriting it.",
+        "Element '/obsm' was written without encoding metadata.",
+        "Element '/obsm/X_pca' was written without encoding metadata.",
+        "Element '/obsm/X_umap' was written without encoding metadata.",
+        "Element '/uns' was written without encoding metadata.",
+        "Element '/uns/clusters_categories' was written without encoding metadata.",
+        "Element '/uns/clusters_coarse_categories' was written without encoding metadata.",
+        "Element '/uns/clusters_coarse_colors' was written without encoding metadata.",
+        "Element '/uns/clusters_colors' was written without encoding metadata.",
+        "Element '/uns/day_colors' was written without encoding metadata.",
+        "Element '/uns/highly_variable_genes_categories' was written without encoding metadata.",
+        "Element '/uns/neighbors' was written without encoding metadata.",
+        "Element '/uns/neighbors/connectivities' was written without encoding metadata.",
+        "Element '/uns/neighbors/distances' was written without encoding metadata.",
+        "Element '/uns/neighbors/params' was written without encoding metadata.",
+        "Element '/uns/neighbors/params/method' was written without encoding metadata.",
+        "Element '/uns/neighbors/params/n_neighbors' was written without encoding metadata.",
+        "Element '/uns/pca' was written without encoding metadata.",
+        "Element '/uns/pca/variance' was written without encoding metadata.",
+        "Element '/uns/pca/variance_ratio' was written without encoding metadata.",
+        "'/var' was written with a very old version of AnnData. Consider rewriting it.",
+        "Moving element from .uns['neighbors']['distances'] to .obsp['distances'].\n\nThis is where adjacency matrices should go now.",
+        "Moving element from .uns['neighbors']['connectivities'] to .obsp['connectivities'].\n\nThis is where adjacency matrices should go now."
+      ]
+    },
+    "scvelo_stochastic_fit": {
+      "count": 1037,
+      "category": "DeprecationWarning",
+      "message": "Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)",
+      "filename_suffix": "scvelo/tools/optimization.py",
+      "line": 184,
+      "relationship": "One warning is emitted for each of the exact 1,037 retained velocity genes; all signatures are captured with the always filter and validated."
+    },
+    "scvelo_velocity_embedding": {
+      "calls": 3,
+      "count_per_call": 1,
+      "category": "FutureWarning",
+      "message": "The method obsm_keys is deprecated and will be removed in the future. Use obsm instead of obsm_keys. (e.g. `k in adata.obsm` or `adata.obsm.keys() | {'u'}`)",
+      "filename_suffix": "scvelo/tools/velocity_embedding.py",
+      "line": 111
+    }
+  },
+  "input_contract": {
+    "n_cells": 3696,
+    "n_genes": 27998,
+    "obs_fields": [
+      "clusters_coarse",
+      "clusters",
+      "S_score",
+      "G2M_score"
+    ],
+    "categorical_levels": {
+      "clusters_coarse": [
+        "Ductal",
+        "Ngn3 low EP",
+        "Ngn3 high EP",
+        "Pre-endocrine",
+        "Endocrine"
+      ],
+      "clusters": [
+        "Ductal",
+        "Ngn3 low EP",
+        "Ngn3 high EP",
+        "Pre-endocrine",
+        "Beta",
+        "Alpha",
+        "Delta",
+        "Epsilon"
+      ]
+    },
+    "continuous_fields": [
+      "S_score",
+      "G2M_score"
+    ],
+    "var_fields": [
+      "highly_variable_genes"
+    ],
+    "highly_variable_marker": {
+      "field": "highly_variable_genes",
+      "selected_value": "True",
+      "marked_genes": 4004,
+      "nonconstant_genes": 3753
+    },
+    "source_embedding": {
+      "key": "X_umap",
+      "dimensions": 2
+    },
+    "latent_space": {
+      "key": "X_pca",
+      "dimensions": 50
+    },
+    "connectivity_key": "connectivities",
+    "layer_keys": [
+      "spliced",
+      "unspliced"
+    ],
+    "digests": {
+      "obs_names_json_sha256": "844f38af5f7fc680d5e08cfbae6686b8af23356f876cd098c3af5717caa3069d",
+      "var_names_json_sha256": "2ac3e1324987663e9e99cdddd800a6dbe4a63f96135c3c13bdd012827460b061",
+      "clusters_coarse_categories_json_sha256": "c031817f6325df7cafb97bf14425e9c682aeab51a4a5f7054dca33ca0dbee502",
+      "clusters_coarse_codes_i32_sha256": "21ad5af44594e7e98ffc4e219e7489e26fc43c9c5fa376fa3c67dbe3eb6c136a",
+      "clusters_categories_json_sha256": "c98296d76257873be7a6b7de1821fb9d1095b1928b54f5ef1b0075f0a11a070f",
+      "clusters_codes_i32_sha256": "a03b4445359a4c0cec466b0734def4f63e9a6011baaeccc9cb8ae7265b131f99",
+      "S_score_f64_sha256": "96ab12dcb4af6b1667000cccb6cf8bff86604256b790a7dda600f04a501b6b99",
+      "G2M_score_f64_sha256": "2455fce2c65593bc10d7892b06cfb8b9deda1931b96c2677e7223ad4b5a51505",
+      "highly_variable_genes_json_sha256": "780f45c3e72c9d87a1c1575d7ee4b1f06b80e2a13eb3b381d3a6b6e322bba889",
+      "source_X_canonical_csr_sha256": "9e724a61ca62c42a24c09eb87de43dd85d768d85eb07c1653ab69159a651bf4d",
+      "spliced_canonical_csr_sha256": "9e724a61ca62c42a24c09eb87de43dd85d768d85eb07c1653ab69159a651bf4d",
+      "unspliced_canonical_csr_sha256": "d43d96454de11f2a9708085c62bb9176d92e265a18718637d29748a95e56cd3b",
+      "source_umap_2d_f32_sha256": "268492298191b4caaecf0db424ede3f49c20f81f6f5ef5854abeaae39929a4c4",
+      "source_pca_f32_sha256": "bb1b95a3dcd220f06242d9c2f3212bb66089efec7032a354091a447820f43551",
+      "source_connectivity_canonical_csr_sha256": "ca9881a55879908b34c70fd80011918e6d70a32d0159b46473843b88faee4d02"
+    }
+  },
+  "public_gene_contract": {
+    "selection": "Source highly_variable_genes exactly equals the string \"True\", retaining only columns with maximum greater than minimum.",
+    "n_genes": 3753,
+    "excluded_source_genes": 24245,
+    "excluded_marked_constant_genes": 251,
+    "ordered_gene_ids_json_sha256": "9c3d31446e03975ec8d386b8d952e3415a7d27fbd8e58c0c57651493903a4de7",
+    "selected_var_json_sha256": "dc7834c79a1770742d4692b121795f29e6c8ed0999d5440c218504204ab35b4c",
+    "expression_canonical_csr_sha256": "dc5ba1a045acc13bcb915aa1872883aab1d33d2e470f264a94f803f6003454da",
+    "expression_nnz": 2237492,
+    "network_rationale": "The 27,998-column source remains the immutable provenance input. The public network payload intentionally contains the exact ordered 3,753 source-marked nonconstant expression vectors; unmarked and constant columns do not add usable varying color fields. The 2,000-gene velocity working set is analysis-only and never replaces this public inventory."
+  },
+  "analysis_contract": {
+    "working_copy_only": true,
+    "preprocessing": {
+      "official_vignette_semantics": "filter_and_normalize(min_shared_counts=20, n_top_genes=2000)",
+      "current_api_expansion": [
+        "scvelo.pp.filter_genes(min_shared_counts=20)",
+        "scvelo.pp.normalize_per_cell(layers=None)",
+        "scanpy.pp.log1p()",
+        "scanpy.pp.highly_variable_genes(n_top_genes=2000, flavor=\"seurat\", subset=True, check_values=True)"
+      ],
+      "genes_after_shared_count_filter": 7197,
+      "analysis_genes": 2000,
+      "analysis_gene_ids_json_sha256": "abc8b182565cc21c0f468efd72eaaa0b3c3743f6cee0f58fd44ab6ef0f4d66bb"
+    },
+    "neighbors_and_moments": {
+      "n_pcs": 30,
+      "n_neighbors": 30,
+      "use_rep": "X_pca",
+      "knn": true,
+      "method": "umap",
+      "transformer": "pynndescent",
+      "metric": "euclidean",
+      "random_state": 4404,
+      "connectivities_nnz": 151464,
+      "moments_mode": "connectivities"
+    },
+    "velocity": {
+      "vkey": "velocity",
+      "mode": "stochastic",
+      "fit_offset": false,
+      "fit_offset2": false,
+      "filter_genes": false,
+      "use_raw": false,
+      "percentiles": [
+        5,
+        95
+      ],
+      "min_r2": 0.01,
+      "min_likelihood": 0.001,
+      "use_highly_variable": true,
+      "velocity_genes": 1037,
+      "gamma_f32_sha256": "e49a292ecd825badba42ad8c24c08829bca3719a4c5419b0e12885cc108e4b43",
+      "velocity_matrix_f32_sha256": "71fadfe0427de84eeac977a04e0a43412653c68dd2245145b350a8159d53241a"
+    },
+    "velocity_graph": {
+      "xkey": "Ms",
+      "n_recurse_neighbors": 2,
+      "sqrt_transform": false,
+      "variance_stabilization": false,
+      "compute_uncertainties": false,
+      "approx": false,
+      "mode_neighbors": "distances",
+      "n_jobs": 1,
+      "backend": "loky",
+      "nnz": 503696,
+      "data_values_f32_sha256": "fb3406dceb640314e7502de8ee5f463c6b15723472efba437028965f5cc956e5",
+      "canonical_csr_sha256": "a383f96367587d49e4ae2f2804e8c40e01034348c8f269dc4a98204ccf2a0f2a"
+    },
+    "embeddings": {
+      "1d": {
+        "ownership": "derived",
+        "algorithm": "scanpy.tl.umap",
+        "n_components": 1,
+        "min_dist": 0.5,
+        "spread": 1.0,
+        "maxiter": 500,
+        "alpha": 1.0,
+        "gamma": 1.0,
+        "negative_sample_rate": 5,
+        "init_pos": "random",
+        "random_state": 1101,
+        "shape": [
+          3696,
+          1
+        ],
+        "minimum": -23.07061767578125,
+        "maximum": 32.774044036865234,
+        "mean": 3.9195499420166016,
+        "standard_deviation": 15.327946662902832,
+        "f32_sha256": "728946571c86557d46b8e82e7e67354dbe1d35f882f9771f21365b1c35b7d266"
+      },
+      "2d": {
+        "ownership": "source",
+        "source_key": "X_umap",
+        "shape": [
+          3696,
+          2
+        ],
+        "minimum": -12.51224422454834,
+        "maximum": 9.649624824523926,
+        "mean": -0.2907835841178894,
+        "standard_deviation": 5.519965171813965,
+        "f32_sha256": "268492298191b4caaecf0db424ede3f49c20f81f6f5ef5854abeaae39929a4c4"
+      },
+      "3d": {
+        "ownership": "derived",
+        "algorithm": "scanpy.tl.umap",
+        "n_components": 3,
+        "min_dist": 0.5,
+        "spread": 1.0,
+        "maxiter": 500,
+        "alpha": 1.0,
+        "gamma": 1.0,
+        "negative_sample_rate": 5,
+        "init_pos": "random",
+        "random_state": 3303,
+        "shape": [
+          3696,
+          3
+        ],
+        "minimum": -5.451986789703369,
+        "maximum": 13.2903413772583,
+        "mean": 4.238479137420654,
+        "standard_deviation": 4.428188323974609,
+        "f32_sha256": "49bd5401441026645719ab66c29a6e88203951f8962a623d1f2024349dfabc0d"
+      }
+    },
+    "velocity_embedding_common": {
+      "scale": 10,
+      "self_transitions": true,
+      "use_negative_cosines": true,
+      "direct_pca_projection": false,
+      "retain_scale": false,
+      "all_comps": true
+    },
+    "velocity_vectors": {
+      "1d": {
+        "basis": "umap_1d",
+        "autoscale": false,
+        "autoscale_rationale": "scVelo's optional quiver autoscaler requires axes 0 and 1. The public projection itself is dimension-generic, so true 1D uses the unmodified public projection with autoscale disabled; no coordinate is padded or truncated.",
+        "shape": [
+          3696,
+          1
+        ],
+        "minimum": -0.9593459367752075,
+        "maximum": 1.0833749771118164,
+        "mean": 0.1371804177761078,
+        "standard_deviation": 0.260318785905838,
+        "nonzero_rows": 3694,
+        "f32_sha256": "9866306ebed44b3c1a7a36c014efd8be0988a907e9298ac987e65bb125b093bc"
+      },
+      "2d": {
+        "basis": "umap_2d",
+        "autoscale": true,
+        "shape": [
+          3696,
+          2
+        ],
+        "minimum": -0.3273887038230896,
+        "maximum": 0.32907378673553467,
+        "mean": 0.01067755464464426,
+        "standard_deviation": 0.07537281513214111,
+        "nonzero_rows": 3696,
+        "f32_sha256": "99b93f6d105fef3a3d4df92c1c28cd87843400994d675c81047f7d873de21f9c"
+      },
+      "3d": {
+        "basis": "umap_3d",
+        "autoscale": true,
+        "shape": [
+          3696,
+          3
+        ],
+        "minimum": -0.39916062355041504,
+        "maximum": 0.3149704337120056,
+        "mean": -0.0197006706148386,
+        "standard_deviation": 0.06209069862961769,
+        "nonzero_rows": 3696,
+        "f32_sha256": "7eecac4509cf486d1ba409d8eed86befeeff9ed8136b5c5ab2c540ad9d9b191a"
+      }
+    }
+  },
+  "export_contract": {
+    "cellucid_data_version": "0.9.1",
+    "dataset_name": "Pancreatic endocrinogenesis (scVelo)",
+    "dataset_description": "Mouse pancreatic epithelial and Ngn3-Venus fusion cells at embryonic day 15.5, spanning endocrine progenitors and differentiated endocrine fates.",
+    "source_name": "scVelo pancreas (GSE132188 E15.5)",
+    "artifact_created_at": "2026-07-27T11:46:37Z",
+    "compression": 6,
+    "var_quantization": 8,
+    "obs_continuous_quantization": 8,
+    "obs_categorical_dtype": "uint8",
+    "centroid_outlier_quantile": 0.95,
+    "centroid_min_points": 10,
+    "available_dimensions": [
+      1,
+      2,
+      3
+    ],
+    "default_dimension": 3,
+    "vector_field": "velocity_umap",
+    "vector_field_default_dimension": 3,
+    "derived_obs_fields": {
+      "cell_type": {
+        "ownership": "derived convenience alias",
+        "source_field": "clusters",
+        "categories_json_sha256": "c98296d76257873be7a6b7de1821fb9d1095b1928b54f5ef1b0075f0a11a070f",
+        "codes_i32_sha256": "a03b4445359a4c0cec466b0734def4f63e9a6011baaeccc9cb8ae7265b131f99"
+      }
+    },
+    "semantic_payloads": {
+      "points_1d.bin.gz": {
+        "raw_bytes": 14784,
+        "raw_sha256": "7800daf21b1c8dd181b9173334e4a9a117a7de6ed4d82c4460bc794d9a39cf4d"
+      },
+      "points_2d.bin.gz": {
+        "raw_bytes": 29568,
+        "raw_sha256": "d7c72cf2437f0e185ce720b50a976b2575d9a04f72ebdd1f5c9eb65c8636ce1b"
+      },
+      "points_3d.bin.gz": {
+        "raw_bytes": 44352,
+        "raw_sha256": "f67c983c7332b215280cea009168be3a850360f07e62a8a06b66f78205986a8c"
+      },
+      "vectors/velocity_umap_1d.bin.gz": {
+        "raw_bytes": 14784,
+        "raw_sha256": "877146aaf6014a2a2d059e5095bc6bc7faf64fcf44177a325b937522229a0f44",
+        "nonzero_rows": 3694
+      },
+      "vectors/velocity_umap_2d.bin.gz": {
+        "raw_bytes": 29568,
+        "raw_sha256": "e81f788d7a51adc1ce50a3a2198a001b3c973f0e2ab94eeb18ff5bc0527a554d",
+        "nonzero_rows": 3696
+      },
+      "vectors/velocity_umap_3d.bin.gz": {
+        "raw_bytes": 44352,
+        "raw_sha256": "a0f30a0c44b1e2b6675589c09030b32e3d6932a636668ed366fd26ea0a26e199",
+        "nonzero_rows": 3696
+      }
+    },
+    "expected_file_count": 3774,
+    "expected_total_bytes": 2477205,
+    "generation_sha256": "268a36b0c62f1e872bc4ebc271283fe09b9036c2b8db2b7bbf2d7d737556c865"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "version": 2,
+  "id": "pancreas",
+  "name": "Pancreatic endocrinogenesis (scVelo)",
+  "description": "Mouse pancreatic epithelial and Ngn3-Venus fusion cells at embryonic day 15.5, spanning endocrine progenitors and differentiated endocrine fates.",
+  "created_at": "2026-07-27T11:46:37Z",
+  "cellucid_data_version": "0.9.1",
+  "stats": {
+    "n_cells": 3696,
+    "n_genes": 3753,
+    "n_obs_fields": 5,
+    "n_categorical_fields": 3,
+    "n_continuous_fields": 2,
+    "has_connectivity": true,
+    "n_edges": 33476
+  },
+  "embeddings": {
+    "available_dimensions": [
+      1,
+      2,
+      3
+    ],
+    "default_dimension": 3,
+    "files": {
+      "1d": "points_1d.bin.gz",
+      "2d": "points_2d.bin.gz",
+      "3d": "points_3d.bin.gz"
+    }
+  },
+  "obs_fields": [
+    {
+      "key": "S_score",
+      "kind": "continuous"
+    },
+    {
+      "key": "G2M_score",
+      "kind": "continuous"
+    },
+    {
+      "key": "clusters_coarse",
+      "kind": "category",
+      "n_categories": 5
+    },
+    {
+      "key": "clusters",
+      "kind": "category",
+      "n_categories": 8
+    },
+    {
+      "key": "cell_type",
+      "kind": "category",
+      "n_categories": 8
+    }
+  ],
+  "export_settings": {
+    "compression": 6,
+    "var_quantization": 8,
+    "obs_continuous_quantization": 8,
+    "obs_categorical_dtype": "uint8"
+  },
+  "source": {
+    "name": "scVelo pancreas (GSE132188 E15.5)",
+    "url": "https://raw.githubusercontent.com/theislab/scvelo_notebooks/f6cad69fd509be44c8453205309f4c3c3c37ba34/data/Pancreas/endocrinogenesis_day15.h5ad",
+    "citation": "Bastidas-Ponce A, Tritschler S, Dony L, Scheibner K, Tarquis-Medina M, Salinno C, Schirge S, Burtscher I, B\u00f6ttcher A, Theis FJ, Lickert H, Bakhti M. Comprehensive single cell mRNA profiling reveals a detailed roadmap for pancreatic endocrinogenesis. Development. 2019;146(12):dev173849. doi:10.1242/dev.173849."
+  },
+  "vector_fields": {
+    "default_field": "velocity_umap",
+    "fields": {
+      "velocity_umap": {
+        "label": "velocity_umap",
+        "basis": "umap",
+        "available_dimensions": [
+          1,
+          2,
+          3
+        ],
+        "default_dimension": 3,
+        "files": {
+          "1d": "vectors/velocity_umap_1d.bin.gz",
+          "2d": "vectors/velocity_umap_2d.bin.gz",
+          "3d": "vectors/velocity_umap_3d.bin.gz"
+        }
+      }
+    }
+  }
+}
