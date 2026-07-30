@@ -30,9 +30,7 @@ class PancreasPublishTests(unittest.TestCase):
         (nested / "field.gz").write_bytes(b"old-payload")
         self.sidecars = {
             "default.cellucid-session": b"reviewed-session-bytes",
-            "state-snapshots.json": (
-                b'{ "states": ["default.cellucid-session"] }\n'
-            ),
+            "state-snapshots.json": (b'{ "states": ["default.cellucid-session"] }\n'),
         }
         for name, payload in self.sidecars.items():
             (self.target / name).write_bytes(payload)

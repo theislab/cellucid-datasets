@@ -176,7 +176,7 @@ def _preflight_runtime(provenance: dict[str, Any]) -> Any:
         )
     installed_distribution_names: set[str] = set()
     for distribution in importlib.metadata.distributions():
-        distribution_name = distribution.metadata.get("Name")
+        distribution_name = distribution.metadata["Name"]
         if not isinstance(distribution_name, str) or not distribution_name:
             raise RuntimeError(
                 "Canonical Pancreas build environment contains an unnamed distribution."
@@ -795,7 +795,9 @@ def _derive_public_obs(source: Any, provenance: dict[str, Any]) -> Any:
     source_values = source.obs[source_field]
     derived_values = published_obs["cell_type"]
     if derived_values.isna().any():
-        raise ValueError("Pancreas derived obs['cell_type'] must not contain missing values.")
+        raise ValueError(
+            "Pancreas derived obs['cell_type'] must not contain missing values."
+        )
     _require_equal(
         "Pancreas derived cell_type category order",
         derived_values.cat.categories.tolist(),
@@ -1159,9 +1161,7 @@ def _validate_generation(output_path: Path, provenance: dict[str, Any]) -> None:
     obs_manifest = json.loads(
         (output_path / "obs_manifest.json").read_text(encoding="utf-8")
     )
-    continuous_keys = [
-        field[0] for field in obs_manifest["_continuousFields"]
-    ]
+    continuous_keys = [field[0] for field in obs_manifest["_continuousFields"]]
     categorical_fields = {
         field[0]: field for field in obs_manifest["_categoricalFields"]
     }
