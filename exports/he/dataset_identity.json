@@ -3,16 +3,16 @@
   "id": "he",
   "name": "he",
   "description": "A human fetal lung cell atlas uncovers proximal-distal gradients of differentiation and key regulators of epithelial fates",
-  "created_at": "2025-12-11T17:52:40Z",
-  "cellucid_data_version": "0.0.9",
+  "created_at": "2026-07-31T10:57:06Z",
+  "cellucid_data_version": "0.9.1",
   "stats": {
     "n_cells": 71650,
-    "n_genes": 8192,
+    "n_genes": 5152,
     "n_obs_fields": 16,
     "n_categorical_fields": 14,
     "n_continuous_fields": 2,
     "has_connectivity": true,
-    "n_edges": 763042
+    "n_edges": 762984
   },
   "embeddings": {
     "available_dimensions": [

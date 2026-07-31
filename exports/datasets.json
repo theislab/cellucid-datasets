@@ -6,31 +6,31 @@
       "id": "suo",
       "path": "suo/",
       "state_manifest": "state-snapshots.json",
-      "state_sha256": "5581569118eaa992d36cd3ce53cde0aa488d27b45f89b8f1a41d56de8f7b7a67"
+      "state_sha256": "136e91fc8d6ec64b75a3a579d93ca1b39dbc939795e8d6f42e13a3d89a44d1f5"
     },
     {
       "id": "garcia",
       "path": "garcia/",
       "state_manifest": "state-snapshots.json",
-      "state_sha256": "3ebb88c01bc15edd6c3856c186065db5de7a7ac0c78c5bd62b6db439e4862ffc"
+      "state_sha256": "180843a7c079bc087c34172e66016c3249eaa10714c8cfc4499dcfe540f39956"
     },
     {
       "id": "he",
       "path": "he/",
       "state_manifest": "state-snapshots.json",
-      "state_sha256": "7959d6d4d0888ce9bf0f74f2a7cf807455503d5448723b582771d45d078c8e3c"
+      "state_sha256": "5cf56e34759e113d8066e704c5d9b35d088ae36845b4a8976600111c4e2ccaaf"
     },
     {
       "id": "kanemaru",
       "path": "kanemaru/",
       "state_manifest": "state-snapshots.json",
-      "state_sha256": "9d8029a362ae8545b14e0b755e906414d87411ad26ee7dbc1d173ee9f68837f5"
+      "state_sha256": "fe0ec9fbf56d8e74d3ee1ea88dc71672358bb1a9a99cb69688b55c44de19decd"
     },
     {
       "id": "pancreas",
       "path": "pancreas/",
       "state_manifest": "state-snapshots.json",
-      "state_sha256": "53a182ea444b34bf65d2f0c83c5aac7eca195c2912680761052ab66b30d22433"
+      "state_sha256": "32f88d6015e3fbc32750aff27592b236e825b5869b33c9e6a13682fc8a83f06a"
     }
   ]
 }

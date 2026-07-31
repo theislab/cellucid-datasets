@@ -1161,10 +1161,28 @@ def _validate_generation(output_path: Path, provenance: dict[str, Any]) -> None:
     obs_manifest = json.loads(
         (output_path / "obs_manifest.json").read_text(encoding="utf-8")
     )
-    continuous_keys = [field[0] for field in obs_manifest["_continuousFields"]]
+    # A payload file is named by its integer index and never by its key, so the
+    # manifest entry leads with that index: [index, key, ...]. The index is the
+    # only thing that reaches a filename and the key is the only thing that
+    # reaches a reader, so both are checked, separately.
+    continuous_keys = [field[1] for field in obs_manifest["_continuousFields"]]
     categorical_fields = {
-        field[0]: field for field in obs_manifest["_categoricalFields"]
+        field[1]: field for field in obs_manifest["_categoricalFields"]
     }
+    obs_payload_indices = [
+        field[0]
+        for field in (
+            *obs_manifest["_continuousFields"],
+            *obs_manifest["_categoricalFields"],
+        )
+    ]
+    # Both arrays write into obs/, so they share one index space. A repeated
+    # index would publish one field's values under another field's entry.
+    _require_equal(
+        "generated Pancreas obs payload indices",
+        sorted(obs_payload_indices),
+        list(range(len(obs_payload_indices))),
+    )
     expected_categorical_keys = [
         *input_contract["categorical_levels"],
         *export["derived_obs_fields"],
@@ -1186,17 +1204,52 @@ def _validate_generation(output_path: Path, provenance: dict[str, Any]) -> None:
     )
     alias_contract = export["derived_obs_fields"]["cell_type"]
     source_field = alias_contract["source_field"]
+    # Element 0 is the payload index and element 1 the key, and the alias is a
+    # different field with a different index and a different name. Everything
+    # from element 2 on is the encoding and the statistics, and those must be
+    # identical to the field the alias copies.
     _require_equal(
         "generated Pancreas cell_type categorical metadata",
-        categorical_fields["cell_type"][1:],
-        categorical_fields[source_field][1:],
+        categorical_fields["cell_type"][2:],
+        categorical_fields[source_field][2:],
     )
+    alias_index = categorical_fields["cell_type"][0]
+    source_index = categorical_fields[source_field][0]
     for suffix in ("codes.u8.gz", "outliers.u8.gz"):
         _require_equal(
             f"generated Pancreas cell_type {suffix}",
-            (output_path / "obs" / f"cell_type.{suffix}").read_bytes(),
-            (output_path / "obs" / f"{source_field}.{suffix}").read_bytes(),
+            (output_path / "obs" / f"{alias_index}.{suffix}").read_bytes(),
+            (output_path / "obs" / f"{source_index}.{suffix}").read_bytes(),
         )
+
+    var_manifest = json.loads(
+        (output_path / "var_manifest.json").read_text(encoding="utf-8")
+    )
+    _require_equal(
+        "generated Pancreas gene payload indices",
+        [field[0] for field in var_manifest["fields"]],
+        list(range(public_contract["n_genes"])),
+    )
+    _require_equal(
+        "generated Pancreas gene identity column",
+        var_manifest["var_gene_id_column"],
+        "gene_name",
+    )
+    # The generation digest below covers every published name, so a filename that
+    # carried dataset content would change it. This states the rule the digest
+    # only implies: inside an axis directory a file is named by its integer
+    # index, and the manifest beside it is what says which field that index is.
+    for directory in ("obs", "var"):
+        offenders = sorted(
+            path.name
+            for path in (output_path / directory).iterdir()
+            if not path.name.split(".", 1)[0].isdigit()
+        )
+        if offenders:
+            raise ValueError(
+                f"Generated Pancreas {directory}/ names payload files after something "
+                f"other than their integer index: {offenders[:5]}"
+            )
 
     canonical_gzip_header = bytes.fromhex("1f8b08000000000000ff")
     gzip_paths = sorted(output_path.rglob("*.gz"))
@@ -1310,6 +1363,15 @@ def _build(
     )
 
     export = provenance["export_contract"]
+    # One name per gene, in a var column of its own, so that every generation in
+    # the catalog declares its gene identity the same way. The names are the
+    # source's own MGI symbols and are not translated, looked up or altered.
+    public["var"] = public["var"].assign(gene_name=public["genes"])
+    _require_equal(
+        "Pancreas gene-name column",
+        public["var"]["gene_name"].tolist(),
+        public["genes"],
+    )
     published_obs = _derive_public_obs(source, provenance)
     published_obs_keys = [
         *provenance["input_contract"]["obs_fields"],
@@ -1322,6 +1384,7 @@ def _build(
             obs=published_obs,
             var=public["var"],
             gene_expression=public["expression"],
+            var_gene_id_column="gene_name",
             gene_identifiers=public["genes"],
             connectivities=public["connectivity"],
             out_dir=stage,

@@ -36,3 +36,35 @@ jobs:
           tests/catalog-contract.test.mjs
           tests/repository-organization-contract.test.mjs
           tests/session-presets-contract.test.mjs
+
+  publisher:
+    # The staged publisher in scripts/build_pancreas.py is POSIX-only by
+    # construction: it fsyncs the parent directory through
+    # os.open(directory, O_RDONLY), which Windows refuses, and it checks
+    # filesystem ownership through os.getuid(). Its suite is therefore run on
+    # the two platforms a Pancreas generation can actually be published from.
+    # It imports nothing outside the standard library -- every heavy import in
+    # build_pancreas.py is function-local, and the suite exercises only the
+    # stage/validate/publish helpers -- so this job installs no dependencies.
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - name: Check out the exact source
+        uses: actions/checkout@v7
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Validate the staged publisher preserves the prior generation
+        run: >-
+          python -m unittest
+          tests/test_build_pancreas_publish.py

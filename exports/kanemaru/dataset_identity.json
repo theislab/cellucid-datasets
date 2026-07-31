@@ -3,16 +3,16 @@
   "id": "kanemaru",
   "name": "kanemaru",
   "description": "Spatially resolved multiomics of human cardiac niches",
-  "created_at": "2025-12-11T19:18:17Z",
-  "cellucid_data_version": "0.0.9",
+  "created_at": "2026-07-31T11:01:46Z",
+  "cellucid_data_version": "0.9.1",
   "stats": {
     "n_cells": 131636,
-    "n_genes": 8192,
+    "n_genes": 3691,
     "n_obs_fields": 16,
     "n_categorical_fields": 14,
     "n_continuous_fields": 2,
     "has_connectivity": true,
-    "n_edges": 1547352
+    "n_edges": 1546824
   },
   "embeddings": {
     "available_dimensions": [

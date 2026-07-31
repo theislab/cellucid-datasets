@@ -76,9 +76,9 @@
         ],
         "default_dimension": 3,
         "files": {
-          "1d": "vectors/velocity_umap_1d.bin.gz",
-          "2d": "vectors/velocity_umap_2d.bin.gz",
-          "3d": "vectors/velocity_umap_3d.bin.gz"
+          "1d": "vectors/0_1d.bin.gz",
+          "2d": "vectors/0_2d.bin.gz",
+          "3d": "vectors/0_3d.bin.gz"
         }
       }
     }

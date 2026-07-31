@@ -3,3 +3,16 @@ __pycache__/
 .ipynb_checkpoints/
 /exports/_*/
 *.pyc
+
+# cellucid.prepare() keeps one writer lock beside every export directory it
+# rebuilds; the inode outlives the run by design.
+/exports/.*.cellucid.lock
+
+# Tool caches (pytest, mypy, ruff, pytest-benchmark)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+
+# Scratch directories a crashed publisher test can leave behind
+.pancreas-publish-test-*/

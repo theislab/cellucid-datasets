@@ -62,12 +62,12 @@
     "cellucid_producer": {
       "repository": "https://github.com/theislab/cellucid-python",
       "version": "0.9.1",
-      "source_tree_manifest_sha256": "4fa5024ce5878655bad027f421b4e62ea3ef07f7eb1238fe0604712ca92ef042",
+      "source_tree_manifest_sha256": "bed10133988eb1b40259606283ef2082f1c4ea10a643e946b7f5efdbedb0e0d9",
       "manifest_definition": "SHA-256 of the LC_ALL=C path-sorted `shasum -a 256` manifest over pyproject.toml, MANIFEST.in, and every non-__pycache__ file under src/cellucid, using repository-relative POSIX paths.",
       "key_files": [
         {
           "path": "src/cellucid/prepare_data.py",
-          "sha256": "117d71a528bd46ccb0c303cca3c75f996c3704bb4f400b1ac3438acd02b78121"
+          "sha256": "5dbf9c31e88d0da38c574f67428953f93b8209348fc993952882c71b7898ec47"
         },
         {
           "path": "src/cellucid/_compression.py",
@@ -75,7 +75,7 @@
         },
         {
           "path": "src/cellucid/anndata_adapter.py",
-          "sha256": "ecceedf97eccfbdfc10d034f42905896b7c2114e468b3ae51d5d8d022ac48490"
+          "sha256": "69258cd3188dad40a55d23f047ddfaf1978d092361bc8ace824e35a2c9af703f"
         }
       ]
     },
@@ -442,24 +442,24 @@
         "raw_bytes": 44352,
         "raw_sha256": "f67c983c7332b215280cea009168be3a850360f07e62a8a06b66f78205986a8c"
       },
-      "vectors/velocity_umap_1d.bin.gz": {
+      "vectors/0_1d.bin.gz": {
         "raw_bytes": 14784,
         "raw_sha256": "877146aaf6014a2a2d059e5095bc6bc7faf64fcf44177a325b937522229a0f44",
         "nonzero_rows": 3694
       },
-      "vectors/velocity_umap_2d.bin.gz": {
+      "vectors/0_2d.bin.gz": {
         "raw_bytes": 29568,
         "raw_sha256": "e81f788d7a51adc1ce50a3a2198a001b3c973f0e2ab94eeb18ff5bc0527a554d",
         "nonzero_rows": 3696
       },
-      "vectors/velocity_umap_3d.bin.gz": {
+      "vectors/0_3d.bin.gz": {
         "raw_bytes": 44352,
         "raw_sha256": "a0f30a0c44b1e2b6675589c09030b32e3d6932a636668ed366fd26ea0a26e199",
         "nonzero_rows": 3696
       }
     },
     "expected_file_count": 3774,
-    "expected_total_bytes": 2477205,
-    "generation_sha256": "268a36b0c62f1e872bc4ebc271283fe09b9036c2b8db2b7bbf2d7d737556c865"
+    "expected_total_bytes": 2498566,
+    "generation_sha256": "c4961b6be043383101ae70aafcb619a1ad3d96650db92a9a6f919924da13e267"
   }
 }
