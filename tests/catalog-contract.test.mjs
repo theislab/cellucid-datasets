@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { lstat, readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,10 @@ const PANCREAS_REQUIREMENTS_URL = new URL(
   '../requirements-pancreas.lock',
   import.meta.url
 );
+const UNPINNED_GENERATIONS_URL = new URL(
+  '../sources/unpinned-generations.json',
+  import.meta.url
+);
 const CATALOG_REQUIRED_KEYS = Object.freeze([
   'datasets',
   'default',
@@ -44,11 +48,11 @@ const ENTRY_OPTIONAL_KEYS = Object.freeze([
   'state_sha256',
 ]);
 const EXPECTED_STATE_SHA256 = Object.freeze({
-  suo: '136e91fc8d6ec64b75a3a579d93ca1b39dbc939795e8d6f42e13a3d89a44d1f5',
-  garcia: '180843a7c079bc087c34172e66016c3249eaa10714c8cfc4499dcfe540f39956',
-  he: '5cf56e34759e113d8066e704c5d9b35d088ae36845b4a8976600111c4e2ccaaf',
-  kanemaru: 'fe0ec9fbf56d8e74d3ee1ea88dc71672358bb1a9a99cb69688b55c44de19decd',
-  pancreas: '32f88d6015e3fbc32750aff27592b236e825b5869b33c9e6a13682fc8a83f06a',
+  suo: 'a2059d7f10ea829cdd1a2faabff5e9346ebe61981c22b58b4857824e1e0cf9a6',
+  garcia: 'f5b1cc1ff8b782501f0eeb03cd373cd66617d3afa901a1decf260156174b5396',
+  he: 'c47a6dea6b5b4c1484238dbd0e876bd5f7800a4ec2cec5ad4b005a7594411386',
+  kanemaru: '2e2acb844745ffa6e9a9e58da33d49ccd7c3daa75264a8072a8a47ec35d0a480',
+  pancreas: 'c95ceaabb71059d3c05938a3ec2d4209c7432383f21ec3271503eacaa41b8c91',
 });
 const IDENTITY_REQUIRED_KEYS = Object.freeze([
   'cellucid_data_version',
@@ -217,22 +221,46 @@ const CONSTANT_OBS_FIELDS = Object.freeze({
 const CONSTANT_OBS_FIELD_ORIGINS = Object.freeze(['source', 'subset']);
 const OBS_FIELD_REQUIRED_KEYS = Object.freeze(['key', 'kind']);
 const OBS_FIELD_OPTIONAL_KEYS = Object.freeze(['n_categories']);
+/**
+ * Every published generation redistributes somebody else's atlas, so every one
+ * of them carries a citation; a source record with a name and a URL but no
+ * citation is the attribution failure this table exists to keep out.
+ *
+ * The four human atlases are cited by their ArrayExpress study title and
+ * accession and by nothing else. No author, year, journal or DOI appears here,
+ * because the repository establishes none of them: the integration outputs under
+ * `.anndatas/` carry no bibliographic record, and each
+ * `<id>_1_prepare_anndata.ipynb` names only the accession. Filling those fields
+ * in is a real improvement and it is welcome, but it has to come from the
+ * primary publications, and the export notebook's `source_citation=` argument is
+ * where it lands -- `dataset_identity.json` is written by `prepare`, never by
+ * hand, so a citation edited into the JSON alone would be gone at the next
+ * rebuild.
+ */
 const SOURCE_EXPECTATIONS = Object.freeze({
   suo: {
     name: 'E-MTAB-11341',
     url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11341',
+    citation:
+      'Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11341.',
   },
   garcia: {
     name: 'E-MTAB-10551',
     url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-10551',
+    citation:
+      'Single-cell roadmap of human gonadal development. ArrayExpress study E-MTAB-10551.',
   },
   he: {
     name: 'E-MTAB-11278',
     url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11278',
+    citation:
+      'A human fetal lung cell atlas uncovers proximal-distal gradients of differentiation and key regulators of epithelial fates. ArrayExpress study E-MTAB-11278.',
   },
   kanemaru: {
     name: 'E-MTAB-12916',
     url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-12916',
+    citation:
+      'Spatially resolved multiomics of human cardiac niches. ArrayExpress study E-MTAB-12916.',
   },
   pancreas: {
     name: 'scVelo pancreas (GSE132188 E15.5)',
@@ -1318,6 +1346,18 @@ test('catalogued source records exactly agree with their authorities', async () 
       SOURCE_EXPECTATIONS[expectedId],
       `${expectedId} source record must exactly match its declared authority`
     );
+    // Stated separately from the table above so that a generation added later
+    // cannot ship uncited merely by being added to both sides at once.
+    assert.equal(
+      typeof identity.source?.citation,
+      'string',
+      `${expectedId} redistributes a published atlas, so its source record must `
+        + 'carry a citation; name and url alone credit an archive and not the study'
+    );
+    assert.ok(
+      identity.source.citation.trim().length > 0,
+      `${expectedId} source citation must say something`
+    );
   }
 });
 
@@ -1360,8 +1400,17 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
     {
       repository: 'https://github.com/theislab/cellucid-python',
       version: '0.9.1',
+      // Repinned deliberately, twice now: first when the producer gained its
+      // manifest read-back check, then when it gained the surrogate and
+      // float32-underflow refusals. Each time verified output-neutral rather
+      // than assumed - a full rebuild against the new producer reproduced
+      // generation_sha256 89c6b684... exactly, and all 3,774 artifacts
+      // compared byte-identical to the published generation. Any change under
+      // cellucid-python/src/cellucid/ lands here, so run this suite after one.
+      // This pin is the second of two on purpose - moving sources/pancreas.json
+      // alone must fail here, so a repin cannot happen silently.
       sourceTree:
-        'bed10133988eb1b40259606283ef2082f1c4ea10a643e946b7f5efdbedb0e0d9',
+        '977d07007990a34da3bb5534cc78e8e5a0c5b13ff4211def6630d79fe25a6cf7',
     }
   );
   assert.equal(
@@ -1674,6 +1723,208 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
     'pancreas prepared generation must remain at most 3 MiB'
   );
 });
+
+/**
+ * Pancreas is the only generation this repository can rebuild and check. Its
+ * source is pinned by digest, its producer by the SHA-256 of every module the
+ * export path executes, its environment by a hashed lock file, and the
+ * directory it must emit by the digest measured above, so a rebuild that
+ * differed anywhere would fail loudly.
+ *
+ * The other four have none of that. Their notebooks assert no version, hash no
+ * input and hash no output, so a rebuild that quietly produced different bytes
+ * would satisfy every check they make. `sources/unpinned-generations.json` is
+ * not a substitute for the missing pin and does not claim to be: it records
+ * what can be read off artifacts already committed here, and this test keeps
+ * those readings true. It catches a published generation changing under the
+ * repository, and it ties each one to the notebook run its committed output
+ * describes. It cannot catch producer drift, which needs the pin these four do
+ * not have.
+ */
+test('the unpinned generations still match everything recorded about them', async () => {
+  const record = await readJson(UNPINNED_GENERATIONS_URL);
+  const pancreas = await readJson(PANCREAS_PROVENANCE_URL);
+  const unpinnedIds = PUBLISHED_DATASET_IDS.filter(
+    datasetId => datasetId !== pancreas.dataset_id
+  );
+  assert.deepEqual(
+    Object.keys(record.generations).sort(),
+    unpinnedIds,
+    'sources/unpinned-generations.json must cover every published generation '
+      + 'sources/pancreas.json does not pin, and no other: a dataset in '
+      + 'neither file carries no reproducibility record at all, and one in '
+      + 'both is being described as pinned and unpinned at once'
+  );
+  for (const statement of ['recorded', 'not_proved', 'not_recoverable']) {
+    assert.ok(
+      Array.isArray(record[statement]) && record[statement].length > 0,
+      `sources/unpinned-generations.json must keep its '${statement}' `
+        + 'statement, which is what stops the digests below reading as a '
+        + 'reproducibility guarantee they are not'
+    );
+  }
+
+  for (const datasetId of unpinnedIds) {
+    const entry = record.generations[datasetId];
+    const directoryUrl = new URL(`${datasetId}/`, EXPORTS_URL);
+    assert.deepEqual(
+      await generationDigest(directoryUrl),
+      {
+        fileCount: entry.observed.file_count,
+        totalBytes: entry.observed.total_bytes,
+        sha256: entry.observed.generation_sha256,
+      },
+      `exports/${datasetId}/ no longer matches the bytes recorded for it. `
+        + 'Either the generation was republished, in which case re-record it '
+        + 'and say what produced the new one, or it changed without anyone '
+        + 'republishing it, which is corruption'
+    );
+    assert.equal(
+      entry.producer.cellucid_data_version,
+      PUBLISHED_IDENTITIES.get(datasetId).cellucid_data_version,
+      `the producer version recorded for ${datasetId} is not the one `
+        + `exports/${datasetId}/dataset_identity.json states, so the record is `
+        + 'attributing the generation to a version that did not write it'
+    );
+    assert.equal(
+      entry.observed.file_count,
+      entry.notebook_reported_file_count,
+      `exports/${datasetId}/ holds a different number of files than the `
+        + 'committed output of the notebook this record attributes it to, so '
+        + 'the two are no longer describing one run'
+    );
+    for (const relative of entry.notebooks) {
+      assert.ok(
+        (await lstat(new URL(`../${relative}`, import.meta.url))).isFile(),
+        `sources/unpinned-generations.json names ${relative}, which is not a `
+          + 'file, so the recipe it credits for this generation is gone'
+      );
+    }
+  }
+});
+
+/**
+ * The Pancreas builder attributes the published generation to one exact
+ * producer source tree. That claim was carried as an aggregate digest plus a
+ * short list of interesting files, and nothing measured either against the
+ * producer repository: the list went on naming `src/cellucid/prepare_data.py`
+ * for three commits after that file became a package directory, and the only
+ * thing that ever noticed was a build nobody runs between releases. The
+ * manifest is now one explicit path list, and these two tests read it -- the
+ * first everywhere, the second wherever the producer repository is checked out
+ * beside this one -- so a pinned path that stops resolving fails in the suite
+ * a maintainer already runs.
+ */
+const PRODUCER_MODULE_PATH = /^src\/cellucid\/(?:[A-Za-z0-9_]+\/)*[A-Za-z0-9_]+\.py$/;
+const PRODUCER_REPOSITORY_URL = new URL(
+  '../../cellucid-python/',
+  import.meta.url
+);
+
+test('the pinned producer manifest agrees with the files it enumerates', async () => {
+  const provenance = await readJson(PANCREAS_PROVENANCE_URL);
+  const producer = provenance.build_environment.cellucid_producer;
+  const sourceFiles = producer.source_files;
+
+  assert.ok(
+    Array.isArray(sourceFiles) && sourceFiles.length > 0,
+    'the producer manifest must enumerate the pinned modules by path, because '
+      + 'a directory pattern lets a removed file leave the pin without a trace'
+  );
+  const paths = sourceFiles.map((entry) => entry.path);
+  assert.deepEqual(
+    paths,
+    [...paths].sort(),
+    'producer source_files must hold the LC_ALL=C path order the recorded '
+      + 'manifest digest is computed in'
+  );
+  assert.equal(
+    new Set(paths).size,
+    paths.length,
+    'producer source_files must name each path once'
+  );
+  for (const relative of paths) {
+    assert.match(
+      relative,
+      PRODUCER_MODULE_PATH,
+      'every pinned producer path must be one repository-relative Python '
+        + 'module below src/cellucid'
+    );
+  }
+  assert.ok(
+    paths.includes('src/cellucid/prepare_data/__init__.py'),
+    'the pin must reach the writer package that emits the export'
+  );
+
+  // The aggregate is what the builder compares, and the per-file list is what
+  // a reader inspects. Recomputing one from the other is what stops a hand
+  // edit to a single hash from leaving the two disagreeing in silence.
+  const manifest = sourceFiles
+    .map((entry) => `${entry.sha256}  ${entry.path}\n`)
+    .join('');
+  assert.equal(
+    sha256(Buffer.from(manifest, 'utf8')),
+    producer.source_tree_manifest_sha256,
+    'the recorded producer manifest digest must be the digest of exactly the '
+      + 'source_files list beneath it'
+  );
+});
+
+test(
+  'every pinned producer file exists and hashes to its pinned value',
+  async (t) => {
+    let producerRoot;
+    try {
+      producerRoot = await stat(PRODUCER_REPOSITORY_URL);
+    } catch {
+      producerRoot = null;
+    }
+    if (producerRoot === null || !producerRoot.isDirectory()) {
+      t.skip(
+        'the cellucid-python producer repository is not checked out beside '
+          + 'this one, so the pinned paths cannot be read here'
+      );
+      return;
+    }
+
+    const provenance = await readJson(PANCREAS_PROVENANCE_URL);
+    const producer = provenance.build_environment.cellucid_producer;
+    const missing = [];
+    const differing = [];
+    for (const entry of producer.source_files) {
+      const fileUrl = new URL(entry.path, PRODUCER_REPOSITORY_URL);
+      let metadata;
+      try {
+        metadata = await lstat(fileUrl);
+      } catch {
+        missing.push(entry.path);
+        continue;
+      }
+      if (!metadata.isFile()) {
+        missing.push(entry.path);
+        continue;
+      }
+      if (sha256(await readFile(fileUrl)) !== entry.sha256) {
+        differing.push(entry.path);
+      }
+    }
+
+    assert.deepEqual(
+      missing,
+      [],
+      'sources/pancreas.json pins producer paths the producer repository no '
+        + 'longer has, so the Pancreas generation is attributed to code that '
+        + 'cannot be read'
+    );
+    assert.deepEqual(
+      differing,
+      [],
+      'the pinned producer files changed, so the published Pancreas generation '
+        + 'was not produced by the code sources/pancreas.json records; rebuild '
+        + 'the generation or repin the manifest deliberately'
+    );
+  }
+);
 
 for (const datasetId of ALL_DATASET_IDS) {
   test(

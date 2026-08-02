@@ -1,7 +1,7 @@
 {
   "version": 2,
   "id": "garcia",
-  "name": "garcia",
+  "name": "Developing human gonad (Garcia)",
   "description": "Single-cell roadmap of human gonadal development",
   "created_at": "2026-07-31T11:10:42Z",
   "cellucid_data_version": "0.9.1",
@@ -115,6 +115,7 @@
   },
   "source": {
     "name": "E-MTAB-10551",
-    "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-10551"
+    "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-10551",
+    "citation": "Single-cell roadmap of human gonadal development. ArrayExpress study E-MTAB-10551."
   }
 }

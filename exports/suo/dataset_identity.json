@@ -1,7 +1,7 @@
 {
   "version": 2,
   "id": "suo",
-  "name": "suo",
+  "name": "Developing human immune system (Suo)",
   "description": "Mapping the developing human immune system across organs",
   "created_at": "2026-07-31T11:34:27Z",
   "cellucid_data_version": "0.9.1",
@@ -115,6 +115,7 @@
   },
   "source": {
     "name": "E-MTAB-11341",
-    "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11341"
+    "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11341",
+    "citation": "Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11341."
   }
 }

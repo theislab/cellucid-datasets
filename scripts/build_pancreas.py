@@ -23,7 +23,7 @@ import warnings
 import zlib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -119,25 +119,90 @@ def _parse_requirements_lock(lock_path: Path) -> dict[str, str]:
     return requirements
 
 
-def _producer_manifest_sha256(repository: Path) -> str:
-    paths = [repository / "MANIFEST.in", repository / "pyproject.toml"]
-    source_root = repository / "src" / "cellucid"
-    paths.extend(
-        candidate
-        for candidate in source_root.rglob("*")
-        if candidate.is_file() and "__pycache__" not in candidate.parts
-    )
-    relative_paths = sorted(path.relative_to(repository) for path in paths)
+def _producer_manifest_sha256(
+    repository: Path, source_files: list[dict[str, str]]
+) -> str:
+    """Verify every pinned producer file and return the manifest digest.
+
+    The pinned set is one explicit path list rather than a directory pattern,
+    so a producer file that is renamed or removed fails by name here instead of
+    vanishing into an aggregate digest that reports only "something differs".
+    """
+    if not source_files:
+        raise ValueError("Cellucid producer source_files must name the pinned modules.")
+    relative_paths = [entry["path"] for entry in source_files]
+    if relative_paths != sorted(relative_paths):
+        raise ValueError(
+            "Cellucid producer source_files must be sorted by repository-relative path."
+        )
+    if len(set(relative_paths)) != len(relative_paths):
+        raise ValueError("Cellucid producer source_files names one path twice.")
+
     manifest = bytearray()
-    for relative in relative_paths:
-        path = repository / relative
-        if path.is_symlink():
+    for entry in source_files:
+        relative = entry["path"]
+        parts = PurePosixPath(relative).parts
+        if relative != PurePosixPath(relative).as_posix() or parts[:2] != (
+            "src",
+            "cellucid",
+        ):
             raise ValueError(
-                f"Cellucid producer manifest must not contain symlinks: {relative}"
+                f"Cellucid producer source_files entry must be one repository-relative "
+                f"POSIX path below src/cellucid: {relative}"
+            )
+        path = repository / relative
+        if not os.path.lexists(path):
+            raise FileNotFoundError(
+                f"Pinned Cellucid producer file no longer exists: {relative}. "
+                f"sources/pancreas.json pins a producer tree {repository} no longer "
+                f"has, so this generation cannot be attributed to the code that "
+                f"produced it."
+            )
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(
+                f"Pinned Cellucid producer file must be one regular file: {relative}"
             )
         file_hash, _ = _hash_and_size(path)
-        manifest.extend(f"{file_hash}  {relative.as_posix()}\n".encode("utf-8"))
+        _require_equal(
+            f"Cellucid producer {relative} SHA-256", file_hash, entry["sha256"]
+        )
+        manifest.extend(f"{file_hash}  {relative}\n".encode("utf-8"))
     return hashlib.sha256(manifest).hexdigest()
+
+
+def _require_export_path_within_manifest(
+    repository: Path, source_files: list[dict[str, str]]
+) -> None:
+    """Refuse to build when the export path runs producer code nothing pins.
+
+    The pinned set is narrowed to the modules ``prepare()`` actually executes,
+    which is only a stronger provenance claim while that set is measured rather
+    than asserted. It is measured here: every ``cellucid`` module the import of
+    ``prepare`` left in ``sys.modules`` has to be one the manifest names.
+    """
+    pinned = {entry["path"] for entry in source_files}
+    repository_root = repository.resolve()
+    uncovered: list[str] = []
+    for name, module in sys.modules.items():
+        if name != "cellucid" and not name.startswith("cellucid."):
+            continue
+        origin = getattr(module, "__file__", None)
+        if origin is None:
+            continue
+        resolved = Path(origin).resolve()
+        if not resolved.is_relative_to(repository_root):
+            continue
+        relative = resolved.relative_to(repository_root).as_posix()
+        if relative not in pinned:
+            uncovered.append(relative)
+    if uncovered:
+        raise RuntimeError(
+            "The Cellucid export path executes producer modules that "
+            "sources/pancreas.json does not pin: "
+            + ", ".join(sorted(uncovered))
+            + ". Add them to build_environment.cellucid_producer.source_files "
+            "so the recorded provenance covers the code that writes the export."
+        )
 
 
 def _preflight_runtime(provenance: dict[str, Any]) -> Any:
@@ -214,18 +279,12 @@ def _preflight_runtime(provenance: dict[str, Any]) -> Any:
             f"Canonical Cellucid producer must be the real sibling repository: "
             f"{producer_repository}"
         )
+    source_files = producer["source_files"]
     _require_equal(
         "Cellucid producer source-tree manifest SHA-256",
-        _producer_manifest_sha256(producer_repository),
+        _producer_manifest_sha256(producer_repository, source_files),
         producer["source_tree_manifest_sha256"],
     )
-    for key_file in producer["key_files"]:
-        actual_hash, _ = _hash_and_size(producer_repository / key_file["path"])
-        _require_equal(
-            f"Cellucid producer {key_file['path']} SHA-256",
-            actual_hash,
-            key_file["sha256"],
-        )
     imported_cellucid = Path(inspect.getfile(cellucid)).resolve()
     expected_source_root = (producer_repository / "src" / "cellucid").resolve()
     if not imported_cellucid.is_relative_to(expected_source_root):
@@ -233,6 +292,7 @@ def _preflight_runtime(provenance: dict[str, Any]) -> Any:
             f"Imported Cellucid producer is {imported_cellucid}; "
             f"expected exact sibling source below {expected_source_root}."
         )
+    _require_export_path_within_manifest(producer_repository, source_files)
 
     _require_equal(
         "NumPy byte order",
@@ -312,9 +372,39 @@ def _preflight_output(output_path: Path, *, force: bool) -> None:
         )
 
 
+def _stage_path(target: Path) -> Path:
+    """Return the one fixed sibling directory a publication stages into.
+
+    The name carries no random suffix, and that is the point. ``prepare()``
+    holds its writer lock on ``<parent>/.<out_dir name>.cellucid.lock`` and
+    deliberately never unlinks it: ``cellucid/prepare_data/_locking.py``
+    explains that an unlink/create race can hand the same inode to two writers,
+    so the file stays and its identity is re-validated instead. That argument
+    bounds the number of lock files only while the locked name repeats. Staging
+    under ``tempfile.mkdtemp`` gave every run a stage name that could never
+    recur, so ``prepare()`` locked a fresh ``..pancreas.stage-<token>``
+    ``.cellucid.lock`` each time and every run stranded one more zero-byte
+    inode. A fixed stage name is reused on the next run exactly as every other
+    dataset's export-directory name is, and it gives that lock something real
+    to exclude: two concurrent publications now contend for one lock instead of
+    each locking a name only itself knows.
+
+    The set-aside backup keeps its random suffix by contrast, because it is
+    created with ``os.replace(target, backup)`` -- a fixed name that an
+    interrupted run left behind would make that rename fail against a non-empty
+    directory -- and because nothing locks it, so it cannot accumulate.
+    """
+    return target.parent / f".{target.name}.stage"
+
+
 def _safe_remove_sibling_tree(path: Path, *, target: Path, role: str) -> None:
-    prefix = f".{target.name}.{role}-"
-    if path.parent != target.parent or not path.name.startswith(prefix):
+    if role == "stage":
+        recognized = path == _stage_path(target)
+    else:
+        recognized = path.parent == target.parent and path.name.startswith(
+            f".{target.name}.{role}-"
+        )
+    if not recognized:
         raise RuntimeError(f"Refusing to remove non-{role} path: {path}")
     if os.path.lexists(path):
         if path.is_symlink() or not path.is_dir():
@@ -391,9 +481,7 @@ def _publish_validated_stage(
     replace: Callable[[Path, Path], None] = os.replace,
 ) -> None:
     """Atomically swap one validated sibling stage with rollback on failure."""
-    if stage.parent != target.parent or not stage.name.startswith(
-        f".{target.name}.stage-"
-    ):
+    if stage != _stage_path(target):
         raise ValueError(f"Pancreas stage is not an exact target sibling: {stage}")
     if stage.is_symlink() or not stage.is_dir():
         raise ValueError(f"Pancreas stage must be one real directory: {stage}")
@@ -443,12 +531,15 @@ def _stage_validate_publish(
     """Write and validate a sibling stage before changing the final target."""
     with _exclusive_publish_lock(target):
         _preflight_output(target, force=force)
-        stage = Path(
-            tempfile.mkdtemp(
-                prefix=f".{target.name}.stage-",
-                dir=target.parent,
-            )
-        )
+        stage = _stage_path(target)
+        try:
+            stage.mkdir(mode=0o700)
+        except FileExistsError as error:
+            raise RuntimeError(
+                f"A Pancreas stage from an interrupted publication is still in "
+                f"place: {stage}. Publishing into it would mix two generations. "
+                f"Remove it once no build is running, then rerun."
+            ) from error
         try:
             writer(stage)
             validator(stage)

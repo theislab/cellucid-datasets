@@ -80,17 +80,16 @@ const TEXT_SURFACE_REGIONS = Object.freeze([
   'workflows',
 ]);
 /**
- * Measured against the 46 text artifacts on disk today: 6 root files, 1
- * workflow, 4 suites, 1 build script, 8 notebooks, 1 provenance record and 25
+ * Measured against the 54 text artifacts on disk today: 12 root files, 1
+ * workflow, 4 suites, 1 build script, 8 notebooks, 2 provenance records and 26
  * published catalog documents. The floor exists so an enumeration that lands
  * on the wrong tree, or that quietly loses a region, fails instead of sweeping
  * a handful of files while reading as though it swept the repository.
  */
 const MINIMUM_TEXT_SURFACE_FILES = 40;
 /**
- * The same surface minus the four artifacts excepted from the retired-path
- * rule below, one of which is the whole `notebooks/` directory. Measured at 35
- * today.
+ * The same surface minus the three artifacts excepted from the retired-path
+ * rule below. Measured at 51 today.
  */
 const MINIMUM_GOVERNED_ARTIFACTS = 30;
 /**
@@ -129,7 +128,7 @@ const MINIMUM_EXPORTS_ENUMERATING_SUITES = 3;
 /**
  * The README byte cap kept the file from becoming an implementation diary but
  * allowed it to become nothing at all: an empty README satisfies a cap. The
- * floor is measured against the current 2,022-byte file.
+ * floor is measured against the current 3,856-byte file.
  */
 const MINIMUM_README_BYTES = 1_200;
 const MAXIMUM_README_BYTES = 4_500;

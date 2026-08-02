@@ -38,6 +38,24 @@ class PancreasPublishTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
+    def _assert_no_sidecar_survives(self) -> None:
+        """No hidden sibling of the published target may outlive a publication.
+
+        The assertion covers every hidden entry rather than one known name
+        shape. The sidecar that escaped the name-shaped version of this check
+        was ``..pancreas.stage-<token>.cellucid.lock`` -- the writer lock
+        ``cellucid.prepare()`` takes beside the directory it is given -- which
+        begins with two dots and so matched nothing looking for ``.pancreas.``.
+        """
+        self.assertEqual(
+            sorted(
+                path.name
+                for path in self.parent.iterdir()
+                if path.name.startswith(".")
+            ),
+            [],
+        )
+
     def _assert_old_generation_intact(self) -> None:
         self.assertEqual(
             (self.target / "identity.json").read_bytes(), b"old-generation"
@@ -47,14 +65,7 @@ class PancreasPublishTests(unittest.TestCase):
         )
         for name, payload in self.sidecars.items():
             self.assertEqual((self.target / name).read_bytes(), payload)
-        self.assertEqual(
-            [
-                path.name
-                for path in self.parent.iterdir()
-                if path.name.startswith(".pancreas.")
-            ],
-            [],
-        )
+        self._assert_no_sidecar_survives()
 
     @staticmethod
     def _write_candidate(stage: Path) -> None:
@@ -80,7 +91,7 @@ class PancreasPublishTests(unittest.TestCase):
     def test_publish_failure_rolls_back_and_cleans_stage_backup_and_lock(self) -> None:
         def fail_stage_swap(source: Path, destination: Path) -> None:
             if (
-                source.name.startswith(".pancreas.stage-")
+                source == builder._stage_path(self.target)
                 and destination == self.target
             ):
                 raise OSError("injected stage publication failure")
@@ -116,13 +127,64 @@ class PancreasPublishTests(unittest.TestCase):
         )
         for name, payload in self.sidecars.items():
             self.assertEqual((self.target / name).read_bytes(), payload)
+        self._assert_no_sidecar_survives()
+
+    def test_repeated_publications_stage_under_one_reused_name(self) -> None:
+        """Every publication must hand ``prepare()`` the same directory name.
+
+        ``cellucid.prepare()`` holds its writer lock on
+        ``<parent>/.<out_dir name>.cellucid.lock`` and never unlinks it:
+        ``cellucid/prepare_data/_locking.py`` explains that an unlink/create
+        race can reissue an inode, so the file is left in place and its
+        identity re-validated instead. One lock file per rebuilt directory is
+        the intended cost, and it stays one only while the directory name
+        repeats. Staging under ``tempfile.mkdtemp`` broke that: the name was
+        new on every run, so the lock name was new on every run, and each run
+        stranded another zero-byte inode nothing would ever reuse or remove.
+        """
+        staged: list[Path] = []
+
+        def record_stage(stage: Path) -> None:
+            staged.append(stage)
+            self._write_candidate(stage)
+
+        for _ in range(3):
+            builder._stage_validate_publish(
+                self.target,
+                force=True,
+                writer=record_stage,
+                validator=lambda _stage: None,
+            )
+
+        expected = self.parent / ".pancreas.stage"
+        self.assertEqual(staged, [expected, expected, expected])
+        self.assertEqual(builder._stage_path(self.target), expected)
+        self._assert_no_sidecar_survives()
+
+    def test_interrupted_stage_blocks_the_next_publication(self) -> None:
+        """A stage left behind is reported, never published into or discarded.
+
+        A fixed stage name is the only thing a crashed run can leave in the
+        way, so the successor has to name it rather than mix a half-written
+        generation into its own.
+        """
+        abandoned = builder._stage_path(self.target)
+        abandoned.mkdir()
+        (abandoned / "half-written.gz").write_bytes(b"interrupted")
+
+        with self.assertRaisesRegex(RuntimeError, "interrupted publication"):
+            builder._stage_validate_publish(
+                self.target,
+                force=True,
+                writer=self._write_candidate,
+                validator=lambda _stage: None,
+            )
+
         self.assertEqual(
-            [
-                path.name
-                for path in self.parent.iterdir()
-                if path.name.startswith(".pancreas.")
-            ],
-            [],
+            (abandoned / "half-written.gz").read_bytes(), b"interrupted"
+        )
+        self.assertEqual(
+            (self.target / "identity.json").read_bytes(), b"old-generation"
         )
 
     def test_post_commit_cleanup_failure_never_restores_partial_backup(self) -> None:
@@ -171,14 +233,7 @@ class PancreasPublishTests(unittest.TestCase):
         for name, payload in self.sidecars.items():
             self.assertEqual((self.target / name).read_bytes(), payload)
         self.assertFalse((self.target / "obs").exists())
-        self.assertEqual(
-            [
-                path.name
-                for path in self.parent.iterdir()
-                if path.name.startswith(".pancreas.")
-            ],
-            [],
-        )
+        self._assert_no_sidecar_survives()
 
     def test_symlink_and_broken_symlink_targets_are_rejected(self) -> None:
         real_target = self.parent / "real"

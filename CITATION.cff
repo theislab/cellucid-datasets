@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: >-
+  This repository redistributes published third-party atlases as demonstration
+  material. If you use one of these datasets in your work, cite the study it
+  came from: each generation names that study in
+  exports/<id>/dataset_identity.json under `source`, with its name, its URL and
+  the citation to use. Cite the entry below only for the prepared demo catalog
+  itself, and cite theislab/cellucid for the viewer that reads it.
+type: dataset
+title: "Cellucid demo datasets: prepared public atlases for the Cellucid viewer"
+# No `version:` field, by design. This catalog carries no released versions: a
+# generation is republished whenever its notebook or the writer that wrote it
+# changes, and it is identified by the `cellucid_data_version` recorded in its
+# own `dataset_identity.json`. The versioned companions are the Python
+# (theislab/cellucid-python) and R (theislab/cellucid-r) packages, whose
+# CITATION.cff files do carry `version:`.
+#
+# No `license:` field either, and for the reason `LICENSE` sets out at length:
+# this repository has no single one. Its own material is BSD-3-Clause, and the
+# prepared datasets under exports/ stay under the terms of the studies they
+# were derived from. A single value here would have to misstate one of them.
+authors:
+  - family-names: Inecik
+    given-names: Kemal
+    email: k.inecik@gmail.com
+repository-code: "https://github.com/theislab/cellucid-datasets"
+url: "https://www.cellucid.com"

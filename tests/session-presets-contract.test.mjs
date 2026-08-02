@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 const REPOSITORY_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -33,31 +33,31 @@ const EXPECTED = Object.freeze({
     cellCount: 561_947,
     varCount: 5_103,
     cellOrderDigest: 'a229f7d3347dbb46',
-    sha256: '136e91fc8d6ec64b75a3a579d93ca1b39dbc939795e8d6f42e13a3d89a44d1f5',
+    sha256: 'a2059d7f10ea829cdd1a2faabff5e9346ebe61981c22b58b4857824e1e0cf9a6',
   }),
   garcia: Object.freeze({
     cellCount: 219_731,
     varCount: 5_754,
     cellOrderDigest: 'd3a48cc719afee0b',
-    sha256: '180843a7c079bc087c34172e66016c3249eaa10714c8cfc4499dcfe540f39956',
+    sha256: 'f5b1cc1ff8b782501f0eeb03cd373cd66617d3afa901a1decf260156174b5396',
   }),
   he: Object.freeze({
     cellCount: 71_650,
     varCount: 5_152,
     cellOrderDigest: '0174556a9edc0bfc',
-    sha256: '5cf56e34759e113d8066e704c5d9b35d088ae36845b4a8976600111c4e2ccaaf',
+    sha256: 'c47a6dea6b5b4c1484238dbd0e876bd5f7800a4ec2cec5ad4b005a7594411386',
   }),
   kanemaru: Object.freeze({
     cellCount: 131_636,
     varCount: 3_691,
     cellOrderDigest: '2ece95555de9b052',
-    sha256: 'fe0ec9fbf56d8e74d3ee1ea88dc71672358bb1a9a99cb69688b55c44de19decd',
+    sha256: '2e2acb844745ffa6e9a9e58da33d49ccd7c3daa75264a8072a8a47ec35d0a480',
   }),
   pancreas: Object.freeze({
     cellCount: 3_696,
     varCount: 3_753,
     cellOrderDigest: '6a65d001fc13301c',
-    sha256: '32f88d6015e3fbc32750aff27592b236e825b5869b33c9e6a13682fc8a83f06a',
+    sha256: 'c95ceaabb71059d3c05938a3ec2d4209c7432383f21ec3271503eacaa41b8c91',
   }),
 });
 /**
@@ -102,6 +102,13 @@ const EXPECTED_CHUNK_IDS = Object.freeze([
  * preset that reordered its chunks, moved a payload to another contributor, or
  * relabelled one stayed well-formed here and was refused by the reader before it
  * could restore anything.
+ *
+ * This is a pin, not a second definition: `the pinned published-default profile
+ * is the viewer's own` below reads
+ * `PUBLISHED_DEFAULT_STATIC_CHUNK_PROFILE` out of the viewer repository and
+ * fails when the two disagree. The pin exists so this suite still governs the
+ * artifacts when it runs alone, which is how this repository's CI runs it; the
+ * agreement test is what stops the pin outliving the rule it copies.
  */
 const PUBLISHED_DEFAULT_CHUNK_PROFILE = Object.freeze([
   Object.freeze({
@@ -169,8 +176,13 @@ const MAX_PRESET_UNCOMPRESSED_BYTES = 64 * 1024;
  * inventory (`validateCompleteControls()` in
  * `cellucid/assets/js/app/state-serializer/ui-controls.js`), and that inventory
  * alone is what makes these files as large as they are: the five published
- * presets measure 2,678 to 2,691 bytes. Anything under 2 KiB cannot be carrying
+ * presets measure 2,716 to 2,728 bytes. Anything under 2 KiB cannot be carrying
  * a reviewed view.
+ *
+ * This range is prose, not a pin, and it went stale once already: it still read
+ * "2,678 to 2,691" after the presets grew by one control. It is restated with
+ * every re-capture for that reason — the sizes the floor is argued from have to
+ * be the sizes on disk, or the argument stops being checkable.
  */
 const MINIMUM_REVIEWED_PRESET_BYTES = 2 * 1024;
 /**
@@ -188,11 +200,18 @@ const DATASET_DERIVED_UI_CONTROL_IDS = Object.freeze([
   'connectivity-limit',
   'velocity-field',
 ]);
+/**
+ * The control types `buildCurrentInventory()` produces, in
+ * `cellucid/assets/js/app/state-serializer/ui-controls.js`. `pressed-group` is
+ * a toolbelt — several buttons of which exactly one is pressed — and it is the
+ * one type whose record carries neither a `value`, a `checked` nor an `open`.
+ */
 const UI_CONTROL_TYPES = Object.freeze([
   'checkbox',
   'color',
   'details',
   'number',
+  'pressed-group',
   'range',
   'select',
   'text',
@@ -511,6 +530,19 @@ function assertUiControlRecord(controlId, record, label) {
       typeof record.open,
       'boolean',
       `${label} open must be a boolean`,
+    );
+    return;
+  }
+  if (record.type === 'pressed-group') {
+    assertExactKeys(record, ['type', 'pressedId'], label);
+    assert.ok(
+      typeof record.pressedId === 'string'
+        && record.pressedId.length > 0
+        && record.pressedId === record.pressedId.trim(),
+      `${label} pressedId must be the stable DOM id of the pressed button; the `
+        + 'application refuses a group whose recorded button it cannot find, and '
+        + 'the value it would otherwise restore is the mode every later gesture '
+        + 'is interpreted in',
     );
     return;
   }
@@ -1392,5 +1424,245 @@ test('reviewed presets differ only where the generations differ', async () => {
     'the reviewed presets must agree on every control the application does not '
       + 'derive from the loaded generation; a control that differs across the '
       + 'five is one dataset opening on a view nobody reviewed',
+  );
+});
+
+/* ------------------------------------------------------------------ *
+ * A Save State is not a publishable preset.
+ *
+ * The viewer's Save State writes every chunk its session contributors emit --
+ * seven for a session with nothing kept. `restorePublishedDefaultState()`
+ * accepts exactly the five above, so publishing means dropping
+ * `cinematic/camera` and `analysis/cache-inventory`, and that drop is lossless
+ * only while both are empty. A recorded camera path dropped from a capture is
+ * gone -- the export format stores it nowhere else -- and the file that ships
+ * still loads, so nothing downstream notices (CEL-0248).
+ *
+ * `scripts/publish_session_preset.mjs` performs that trim and refuses when a
+ * dropped chunk carries anything. The two tests below run it, because a publish
+ * helper nobody exercises is a second way to get the trim wrong rather than the
+ * first way to get it right. Both need the viewer repository, which owns the
+ * rule; only an absent *repository* is a reason to skip.
+ * ------------------------------------------------------------------ */
+
+const VIEWER_REPOSITORY_URL = new URL('../../cellucid/', import.meta.url);
+
+async function viewerRepositoryPresent() {
+  try {
+    return (await stat(VIEWER_REPOSITORY_URL)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+test("the pinned published-default profile is the viewer's own", async (t) => {
+  if (!await viewerRepositoryPresent()) {
+    t.skip(
+      'the cellucid repository is not checked out beside this one, so the '
+        + 'profile pinned above cannot be compared with the rule it copies',
+    );
+    return;
+  }
+  const { PUBLISHED_DEFAULT_STATIC_CHUNK_PROFILE } = await import(
+    new URL('assets/js/app/session/published-default.js', VIEWER_REPOSITORY_URL)
+      .href
+  );
+
+  assert.deepEqual(
+    PUBLISHED_DEFAULT_CHUNK_PROFILE.map(profile => ({ ...profile })),
+    PUBLISHED_DEFAULT_STATIC_CHUNK_PROFILE.map(profile => ({ ...profile })),
+    'the profile pinned in this file must be the one '
+      + 'restorePublishedDefaultState() validates against, field for field and '
+      + 'in the same order. A pin that outlives the rule it copies reads as '
+      + 'agreement while the application refuses every preset it governs',
+  );
+  assert.deepEqual(
+    [...PUBLISHED_DEFAULT_CHUNK_PROFILE.map(profile => profile.id)].sort(),
+    [...EXPECTED_CHUNK_IDS],
+    'the pinned ids and the pinned profile must describe one set of chunks',
+  );
+});
+
+/**
+ * The Save State a published preset was trimmed from.
+ *
+ * Built out of a published preset rather than invented, so the two differ by
+ * exactly the chunks publishing removes: the viewer emits eager chunks in
+ * contributor order, which puts `cinematic/camera` between the field overlays
+ * and the core state, and the analysis cache inventory last.
+ *
+ * @param {{ bytes: Buffer, manifest: any }} preset
+ * @param {{ keyframes: any[], artifactIds: string[] }} recorded
+ */
+function saveStateFor(preset, recorded) {
+  const droppedChunks = [
+    {
+      after: 'core/field-overlays',
+      meta: {
+        id: 'cinematic/camera',
+        contributorId: 'cinematic-camera',
+        priority: 'eager',
+        kind: 'json',
+        codec: 'gzip',
+        label: 'Cinematic camera path',
+        datasetDependent: true,
+      },
+      payload: {
+        keyframes: recorded.keyframes,
+        nextIndex: recorded.keyframes.length + 1,
+        defaultSpeed: '50',
+        autoplay: false,
+        invertLook: false,
+        orbitReverse: false,
+        planarInvertAxes: false,
+        planarZoomToCursor: true,
+        showOrbitAnchor: true,
+        orbitKeySpeed: '20',
+        planarPanSpeed: '20',
+        lookSensitivity: '10',
+        moveSpeed: '20',
+      },
+    },
+    {
+      after: null,
+      meta: {
+        id: 'analysis/cache-inventory',
+        contributorId: 'analysis-artifacts',
+        priority: 'eager',
+        kind: 'json',
+        codec: 'gzip',
+        label: 'Analysis cache inventory',
+        datasetDependent: true,
+      },
+      payload: { artifactIds: recorded.artifactIds },
+    },
+  ];
+
+  // Split the preset back into its stored chunk bytes.
+  let offset = MAGIC.length + 4
+    + readU32(preset.bytes, MAGIC.length, 'preset manifest');
+  const stored = new Map();
+  for (const meta of preset.manifest.chunks) {
+    offset += 4;
+    stored.set(meta.id, preset.bytes.subarray(offset, offset + meta.storedBytes));
+    offset += meta.storedBytes;
+  }
+
+  const metas = [];
+  const payloads = [];
+  const append = (dropped) => {
+    const raw = Buffer.from(JSON.stringify(dropped.payload), 'utf8');
+    const gzipped = gzipSync(raw);
+    metas.push({
+      ...dropped.meta,
+      storedBytes: gzipped.length,
+      uncompressedBytes: raw.length,
+    });
+    payloads.push(gzipped);
+  };
+  for (const meta of preset.manifest.chunks) {
+    metas.push(meta);
+    payloads.push(stored.get(meta.id));
+    for (const dropped of droppedChunks) {
+      if (dropped.after === meta.id) append(dropped);
+    }
+  }
+  for (const dropped of droppedChunks) {
+    if (dropped.after === null) append(dropped);
+  }
+
+  const manifestBytes = Buffer.from(
+    JSON.stringify({
+      createdAt: preset.manifest.createdAt,
+      datasetFingerprint: preset.manifest.datasetFingerprint,
+      chunks: metas,
+    }),
+    'utf8',
+  );
+  const parts = [MAGIC, Buffer.alloc(4), manifestBytes];
+  parts[1].writeUInt32LE(manifestBytes.length, 0);
+  for (const payload of payloads) {
+    const length = Buffer.alloc(4);
+    length.writeUInt32LE(payload.length, 0);
+    parts.push(length, Buffer.from(payload));
+  }
+  return { bytes: Buffer.concat(parts), chunkIds: metas.map(meta => meta.id) };
+}
+
+test('the publish helper reproduces a published preset from its save', async (t) => {
+  if (!await viewerRepositoryPresent()) {
+    t.skip('the cellucid repository is not checked out beside this one');
+    return;
+  }
+  const { trimSaveStateToPreset } = await import(
+    new URL('../scripts/publish_session_preset.mjs', import.meta.url).href
+  );
+
+  for (const datasetId of PRESET_DATASET_IDS) {
+    const preset = await loadPublishedPreset(datasetId);
+    const save = saveStateFor(preset, { keyframes: [], artifactIds: [] });
+    assert.equal(
+      save.chunkIds.length,
+      PUBLISHED_DEFAULT_CHUNK_PROFILE.length + 2,
+      `${preset.label} save must carry the two chunks publishing removes`,
+    );
+
+    const published = await trimSaveStateToPreset(save.bytes);
+    assert.deepEqual(
+      published.chunkIds,
+      PUBLISHED_DEFAULT_CHUNK_PROFILE.map(profile => profile.id),
+      `${preset.label} must publish as the five accepted chunks in order`,
+    );
+    assert.deepEqual(
+      Buffer.from(published.bytes),
+      preset.bytes,
+      `${preset.label} must be byte-identical to what the publish helper `
+        + 'produces from the capture it came from -- if it is not, the '
+        + 'committed file was trimmed by some other hand and the helper is not '
+        + 'the thing that made it',
+    );
+    assert.equal(
+      published.sha256,
+      EXPECTED[datasetId].sha256,
+      `${preset.label} published digest`,
+    );
+  }
+});
+
+test('the publish helper refuses a capture that would lose recorded work', async (t) => {
+  if (!await viewerRepositoryPresent()) {
+    t.skip('the cellucid repository is not checked out beside this one');
+    return;
+  }
+  const { trimSaveStateToPreset } = await import(
+    new URL('../scripts/publish_session_preset.mjs', import.meta.url).href
+  );
+  const preset = await loadPublishedPreset(PRESET_DATASET_IDS[0]);
+
+  const withCameraPath = saveStateFor(preset, {
+    keyframes: [{
+      id: 'kf_1',
+      label: 'Opening',
+      durationMs: 1_000,
+      camera: { radius: 2.43, theta: 0.78, phi: 0.78, target: [0, 0, 0] },
+    }],
+    artifactIds: [],
+  });
+  await assert.rejects(
+    () => trimSaveStateToPreset(withCameraPath.bytes),
+    /cinematic\/camera.*keyframes holds 1 entry/s,
+    'a capture holding a camera path must be refused by name and by content; '
+      + 'publishing it would drop the path into a file that still loads',
+  );
+
+  const withCachedArtifacts = saveStateFor(preset, {
+    keyframes: [],
+    artifactIds: ['analysis/artifacts/bulk-gene/page_1/CD8A'],
+  });
+  await assert.rejects(
+    () => trimSaveStateToPreset(withCachedArtifacts.bytes),
+    /analysis\/cache-inventory.*artifactIds holds 1 entry/s,
+    'a capture naming cached analysis artifacts must be refused: the chunks '
+      + 'those names point at cannot travel in a published default either',
   );
 });
