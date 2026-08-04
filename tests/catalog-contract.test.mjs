@@ -48,11 +48,11 @@ const ENTRY_OPTIONAL_KEYS = Object.freeze([
   'state_sha256',
 ]);
 const EXPECTED_STATE_SHA256 = Object.freeze({
-  suo: 'a2059d7f10ea829cdd1a2faabff5e9346ebe61981c22b58b4857824e1e0cf9a6',
-  garcia: 'f5b1cc1ff8b782501f0eeb03cd373cd66617d3afa901a1decf260156174b5396',
-  he: 'c47a6dea6b5b4c1484238dbd0e876bd5f7800a4ec2cec5ad4b005a7594411386',
-  kanemaru: '2e2acb844745ffa6e9a9e58da33d49ccd7c3daa75264a8072a8a47ec35d0a480',
-  pancreas: 'c95ceaabb71059d3c05938a3ec2d4209c7432383f21ec3271503eacaa41b8c91',
+  suo: '000063ef8b4617ae58d9275b9c18ac6a38bd950df35c828f2514046a3a210417',
+  garcia: 'b246daf96914be1db847bc1dc565a191d1257f48525d2930beb7190a00c247a8',
+  he: 'cc88d26764ba24459463e14b90c39c37a16ae55512a0210820476a8352224682',
+  kanemaru: '5adb4368b7b0a2d4b892785d6486c125308afd8f632e649f67b648596e0a49ac',
+  pancreas: 'a37e0500ecac42ec123dc958f19f5190a8124c6cb2f12125af4e646660b3ec42',
 });
 const IDENTITY_REQUIRED_KEYS = Object.freeze([
   'cellucid_data_version',
@@ -842,18 +842,37 @@ function recordedConstantFieldKeys(datasetId) {
     .sort();
 }
 
+/**
+ * Whether this directory entry is part of the published generation.
+ *
+ * A published generation contains no dot-prefixed entry. The ones that turn up
+ * in a working tree are local tool metadata that never reaches the published
+ * repository — Finder's `.DS_Store`, the exporter's `.<id>.cellucid.lock` — and
+ * measuring them made one unchanged generation weigh 6,148 bytes more on a
+ * maintainer's laptop than in CI. A pin whose value depends on who last opened
+ * the folder teaches everyone to disregard it.
+ *
+ * `no published generation carries a dot-prefixed file` asserts against the
+ * committed tree that this only ever skips such metadata.
+ */
+function isPublishedEntry(entry) {
+  return !entry.name.startsWith('.');
+}
+
 async function directorySize(url) {
   const sizes = await Promise.all(
-    (await readdir(url, { withFileTypes: true })).map(async entry => {
-      const entryUrl = new URL(entry.name, url);
-      if (entry.isDirectory()) {
-        return directorySize(new URL(`${entry.name}/`, url));
-      }
-      if (entry.isFile()) {
-        return (await stat(entryUrl)).size;
-      }
-      return 0;
-    })
+    (await readdir(url, { withFileTypes: true }))
+      .filter(isPublishedEntry)
+      .map(async entry => {
+        const entryUrl = new URL(entry.name, url);
+        if (entry.isDirectory()) {
+          return directorySize(new URL(`${entry.name}/`, url));
+        }
+        if (entry.isFile()) {
+          return (await stat(entryUrl)).size;
+        }
+        return 0;
+      })
   );
   return sizes.reduce((sum, size) => sum + size, 0);
 }
@@ -896,6 +915,7 @@ async function generationDigest(directoryUrl) {
     );
     for (const entry of entries) {
       const absolute = path.join(directory, entry.name);
+      if (!isPublishedEntry(entry)) continue;
       if (entry.isDirectory()) {
         await walk(absolute);
       } else if (entry.isFile()) {
@@ -1162,6 +1182,45 @@ test('every prepared generation in exports/ is swept for payload content', () =>
     PUBLISHED_CONNECTIVITY_DATASET_IDS.length >=
       CONNECTIVITY_DATASET_IDS.length,
     'the connectivity sweep must cover at least every catalogued dataset'
+  );
+});
+
+test('no published generation carries a dot-prefixed file', async () => {
+  // The companion to the exclusion in `generationDigest()`. That walk skips
+  // dot-prefixed entries so local tool metadata cannot change what a generation
+  // measures; this asserts the exclusion is only ever skipping such metadata,
+  // by asking git what the repository actually publishes rather than looking at
+  // the working tree the exclusion exists to tolerate.
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const tracked = await promisify(execFile)(
+    'git',
+    ['ls-files', '-z', '--', 'exports'],
+    { cwd: fileURLToPath(new URL('..', import.meta.url)), maxBuffer: 64 << 20 }
+  ).then(
+    result => result.stdout.split('\0').filter(line => line.length > 0),
+    cause => {
+      assert.fail(
+        'this check asks git which files the repository publishes, and git '
+          + `could not answer here: ${cause.message}`
+      );
+    }
+  );
+  assert.ok(
+    tracked.length > 0,
+    'git reported no published files under exports/, so this check compared '
+      + 'nothing'
+  );
+  const dotted = tracked.filter(relative =>
+    relative.split('/').some(segment => segment.startsWith('.'))
+  );
+  assert.deepEqual(
+    dotted,
+    [],
+    'a published generation now carries a dot-prefixed file, which '
+      + 'generationDigest() skips as local tool metadata. Its bytes are '
+      + 'therefore in no pin. Either it does not belong in exports/, or the '
+      + 'exclusion has to learn the difference'
   );
 });
 

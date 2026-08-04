@@ -33,31 +33,126 @@ const EXPECTED = Object.freeze({
     cellCount: 561_947,
     varCount: 5_103,
     cellOrderDigest: 'a229f7d3347dbb46',
-    sha256: 'a2059d7f10ea829cdd1a2faabff5e9346ebe61981c22b58b4857824e1e0cf9a6',
+    sha256: '000063ef8b4617ae58d9275b9c18ac6a38bd950df35c828f2514046a3a210417',
+    camera: Object.freeze({
+      navigationMode: 'orbit',
+      orbit: Object.freeze({
+        radius: 0.8817669428902989,
+        targetRadius: 0.8817669428902989,
+        theta: 2.861307695117691,
+        phi: 1.7024549527672228,
+        target: Object.freeze([0, 0, 0]),
+      }),
+      freefly: Object.freeze({
+        position: Object.freeze([
+          -0.8400240003559275,
+          -0.11575712437608862,
+          0.24181172129635684,
+        ]),
+        yaw: -0.2802849584721023,
+        pitch: 0.1316586259723262,
+      }),
+    }),
   }),
   garcia: Object.freeze({
     cellCount: 219_731,
     varCount: 5_754,
     cellOrderDigest: 'd3a48cc719afee0b',
-    sha256: 'f5b1cc1ff8b782501f0eeb03cd373cd66617d3afa901a1decf260156174b5396',
+    sha256: 'b246daf96914be1db847bc1dc565a191d1257f48525d2930beb7190a00c247a8',
+    camera: Object.freeze({
+      navigationMode: 'orbit',
+      orbit: Object.freeze({
+        radius: 1.106010096941288,
+        targetRadius: 1.106010096941288,
+        theta: 1.4576226052247212,
+        phi: 1.79557114622099,
+        target: Object.freeze([0, 0, 0]),
+      }),
+      freefly: Object.freeze({
+        position: Object.freeze([
+          0.12176219378593962,
+          -0.2465151085448905,
+          1.0712901586216563,
+        ]),
+        yaw: -1.6839700483650721,
+        pitch: 0.2247748194260934,
+      }),
+    }),
   }),
   he: Object.freeze({
     cellCount: 71_650,
     varCount: 5_152,
     cellOrderDigest: '0174556a9edc0bfc',
-    sha256: 'c47a6dea6b5b4c1484238dbd0e876bd5f7800a4ec2cec5ad4b005a7594411386',
+    sha256: 'cc88d26764ba24459463e14b90c39c37a16ae55512a0210820476a8352224682',
+    camera: Object.freeze({
+      navigationMode: 'orbit',
+      orbit: Object.freeze({
+        radius: 2.353322246692734,
+        targetRadius: 2.353322246692734,
+        theta: 0.530398163397444,
+        phi: 1.4053981633974426,
+        target: Object.freeze([0, 0, 0]),
+      }),
+      freefly: Object.freeze({
+        position: Object.freeze([
+          2.002285713714809,
+          0.38746291461474713,
+          1.1742444410048358,
+        ]),
+        yaw: -2.611194490192349,
+        pitch: -0.16539816339745403,
+      }),
+    }),
   }),
   kanemaru: Object.freeze({
     cellCount: 131_636,
     varCount: 3_691,
     cellOrderDigest: '2ece95555de9b052',
-    sha256: '2e2acb844745ffa6e9a9e58da33d49ccd7c3daa75264a8072a8a47ec35d0a480',
+    sha256: '5adb4368b7b0a2d4b892785d6486c125308afd8f632e649f67b648596e0a49ac',
+    camera: Object.freeze({
+      navigationMode: 'orbit',
+      orbit: Object.freeze({
+        radius: 2.0685682285825853,
+        targetRadius: 2.0685682285825853,
+        theta: 4.058985763658586,
+        phi: 1.8019110881013711,
+        target: Object.freeze([0, 0, 0]),
+      }),
+      freefly: Object.freeze({
+        position: Object.freeze([
+          -1.2240324140008385,
+          -0.4738320041178864,
+          -1.5988128088210332,
+        ]),
+        yaw: 0.9173931100687926,
+        pitch: 0.23111476130647451,
+      }),
+    }),
   }),
   pancreas: Object.freeze({
     cellCount: 3_696,
     varCount: 3_753,
     cellOrderDigest: '6a65d001fc13301c',
-    sha256: 'c95ceaabb71059d3c05938a3ec2d4209c7432383f21ec3271503eacaa41b8c91',
+    sha256: 'a37e0500ecac42ec123dc958f19f5190a8124c6cb2f12125af4e646660b3ec42',
+    camera: Object.freeze({
+      navigationMode: 'orbit',
+      orbit: Object.freeze({
+        radius: 2.24671229236822,
+        targetRadius: 2.24671229236822,
+        theta: 0.551567528087176,
+        phi: 2.170347297568933,
+        target: Object.freeze([0, 0, 0]),
+      }),
+      freefly: Object.freeze({
+        position: Object.freeze([
+          1.5797929083496445,
+          -1.2677564267528365,
+          0.9719897807248349,
+        ]),
+        yaw: -2.5900251255026174,
+        pitch: 0.5995509707740364,
+      }),
+    }),
   }),
 });
 /**
@@ -66,25 +161,21 @@ const EXPECTED = Object.freeze({
  * at load with the "switch back to the ND view" message.
  */
 const EXPECTED_CELL_ORDER_DIMENSION = 3;
-const EXPECTED_CAMERA = Object.freeze({
-  navigationMode: 'orbit',
-  orbit: Object.freeze({
-    radius: 2.43,
-    targetRadius: 2.43,
-    theta: Math.PI / 4,
-    phi: Math.PI / 4,
-    target: Object.freeze([0, 0, 0]),
-  }),
-  freefly: Object.freeze({
-    position: Object.freeze([
-      1.215,
-      1.7182694782833108,
-      1.2149999999999999,
-    ]),
-    yaw: -3 * Math.PI / 4,
-    pitch: -0.7853981633974484,
-  }),
-});
+/**
+ * The identity a published default is read under.
+ *
+ * A preset is captured by serving the prepared generation locally, so the
+ * capture names a `local-user` source and an id the local source invented,
+ * while the catalog serves the same bytes as `local-demo` under the
+ * generation's own id. `datasetFingerprintMatches()` compares both fields
+ * before the viewer applies a published default, so a preset committed with the
+ * capture's identity is refused on every open and the sample shows none of its
+ * published view — the file is valid, and nothing about it looks wrong until
+ * somebody loads it. `scripts/publish_session_preset.mjs` is what restates the
+ * identity, and it may only do so for a capture whose counts and cell-order
+ * digest it has re-derived from the generation itself.
+ */
+const EXPECTED_SOURCE_TYPE = 'local-demo';
 const EXPECTED_CHUNK_IDS = Object.freeze([
   'analysis/windows',
   'core/field-overlays',
@@ -186,18 +277,34 @@ const MAX_PRESET_UNCOMPRESSED_BYTES = 64 * 1024;
  */
 const MINIMUM_REVIEWED_PRESET_BYTES = 2 * 1024;
 /**
- * The application rebuilds exactly two sidebar controls out of the loaded
- * generation: `connectivity-limit`, whose slider maximum is clamped to the
- * edges the viewer actually loaded (`updateSliderRange()` in
- * `cellucid/assets/js/app/main.js`), and `velocity-field`, whose option list is
- * rebuilt from the dataset's declared vector fields
- * (`renderFieldSelectForActiveDim()` in
- * `cellucid/assets/js/app/ui/modules/velocity-overlay-controls.js`). Every other
- * control is markup the five reviewed captures share, so any other divergence
- * between the five presets is one dataset's view having silently drifted.
+ * The controls the application sets from the loaded generation rather than from
+ * the markup, so a capture is expected to disagree with the other four here:
+ *
+ * - `connectivity-limit`, whose slider maximum is clamped to the edges the
+ *   viewer actually loaded (`updateSliderRange()` in
+ *   `cellucid/assets/js/app/main.js`).
+ * - `velocity-field`, whose option list is rebuilt from the dataset's declared
+ *   vector fields (`renderFieldSelectForActiveDim()` in
+ *   `cellucid/assets/js/app/ui/modules/velocity-overlay-controls.js`).
+ * - `point-size` and `hp-antialias`, both computed from the cell count by
+ *   `applyDatasetRenderDefaults()` in
+ *   `cellucid/assets/js/app/ui/core/ui-coordinator.js`, because one shipped
+ *   constant cannot be right for a 3,696-cell trajectory and an 18-million-cell
+ *   atlas at once.
+ *
+ * Every other control is markup the reviewed captures share, so a divergence
+ * outside this set is one dataset's view having silently drifted.
+ *
+ * Membership means a control *may* differ, not that it must. Two generations
+ * that fall on the same side of the antialiasing threshold agree on it, and
+ * that is a fact about the datasets rather than about the presets — requiring
+ * every listed control to actually differ made this assertion fail the day a
+ * re-capture happened to land five datasets in one bracket.
  */
 const DATASET_DERIVED_UI_CONTROL_IDS = Object.freeze([
   'connectivity-limit',
+  'hp-antialias',
+  'point-size',
   'velocity-field',
 ]);
 /**
@@ -816,7 +923,7 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
       `${label} cell-order digest must be 16 lowercase hexadecimal characters`,
     );
     assert.deepEqual(manifest.datasetFingerprint, {
-      sourceType: 'local-demo',
+      sourceType: EXPECTED_SOURCE_TYPE,
       datasetId,
       cellCount: expected.cellCount,
       varCount: expected.varCount,
@@ -851,7 +958,10 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
     });
     assert.deepEqual(core.filters, {});
     assert.equal(core.liveDimensionLevel, 3);
-    assert.deepEqual(core.camera, EXPECTED_CAMERA);
+    // Each preset frames its own dataset, so this is pinned per generation
+    // rather than once: the presets shared one opening camera until each was
+    // re-captured on the view its own embedding reads best in.
+    assert.deepEqual(core.camera, expected.camera);
     assert.equal(core.uiControls['theme-select'].value, 'light');
     assert.equal(core.uiControls['background-select'].value, 'grid');
 
@@ -862,7 +972,7 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
     );
     assert.equal(core.multiview.camerasLocked, true);
     assert.deepEqual(core.multiview.snapshots, []);
-    assert.deepEqual(core.multiview.liveCameraState, EXPECTED_CAMERA);
+    assert.deepEqual(core.multiview.liveCameraState, expected.camera);
     assert.deepEqual(core.multiview.layout, {
       mode: 'grid',
       activeId: 'live',
@@ -1418,13 +1528,29 @@ test('reviewed presets differ only where the generations differ', async () => {
       }
     }
   }
+  const drifted = [...divergent]
+    .filter(controlId => !DATASET_DERIVED_UI_CONTROL_IDS.includes(controlId))
+    .sort();
   assert.deepEqual(
-    [...divergent].sort(),
-    [...DATASET_DERIVED_UI_CONTROL_IDS].sort(),
+    drifted,
+    [],
     'the reviewed presets must agree on every control the application does not '
       + 'derive from the loaded generation; a control that differs across the '
-      + 'five is one dataset opening on a view nobody reviewed',
+      + `five is one dataset opening on a view nobody reviewed (${
+        drifted.join(', ')})`,
   );
+  // The derived controls are what this assertion tolerates, so it is worth
+  // knowing they are still reachable: an id that left the interface would sit
+  // in the list forever, widening the tolerance against a control that no
+  // longer exists.
+  for (const controlId of DATASET_DERIVED_UI_CONTROL_IDS) {
+    assert.ok(
+      Object.hasOwn(referenceControls, controlId),
+      `${controlId} is tolerated as dataset-derived but no reviewed preset `
+        + 'carries it; the tolerance now covers nothing and hides whatever '
+        + 'replaced it',
+    );
+  }
 });
 
 /* ------------------------------------------------------------------ *
@@ -1607,7 +1733,7 @@ test('the publish helper reproduces a published preset from its save', async (t)
       `${preset.label} save must carry the two chunks publishing removes`,
     );
 
-    const published = await trimSaveStateToPreset(save.bytes);
+    const published = await trimSaveStateToPreset(save.bytes, datasetId);
     assert.deepEqual(
       published.chunkIds,
       PUBLISHED_DEFAULT_CHUNK_PROFILE.map(profile => profile.id),
@@ -1637,7 +1763,8 @@ test('the publish helper refuses a capture that would lose recorded work', async
   const { trimSaveStateToPreset } = await import(
     new URL('../scripts/publish_session_preset.mjs', import.meta.url).href
   );
-  const preset = await loadPublishedPreset(PRESET_DATASET_IDS[0]);
+  const datasetId = PRESET_DATASET_IDS[0];
+  const preset = await loadPublishedPreset(datasetId);
 
   const withCameraPath = saveStateFor(preset, {
     keyframes: [{
@@ -1649,7 +1776,7 @@ test('the publish helper refuses a capture that would lose recorded work', async
     artifactIds: [],
   });
   await assert.rejects(
-    () => trimSaveStateToPreset(withCameraPath.bytes),
+    () => trimSaveStateToPreset(withCameraPath.bytes, datasetId),
     /cinematic\/camera.*keyframes holds 1 entry/s,
     'a capture holding a camera path must be refused by name and by content; '
       + 'publishing it would drop the path into a file that still loads',
@@ -1660,7 +1787,7 @@ test('the publish helper refuses a capture that would lose recorded work', async
     artifactIds: ['analysis/artifacts/bulk-gene/page_1/CD8A'],
   });
   await assert.rejects(
-    () => trimSaveStateToPreset(withCachedArtifacts.bytes),
+    () => trimSaveStateToPreset(withCachedArtifacts.bytes, datasetId),
     /analysis\/cache-inventory.*artifactIds holds 1 entry/s,
     'a capture naming cached analysis artifacts must be refused: the chunks '
       + 'those names point at cannot travel in a published default either',

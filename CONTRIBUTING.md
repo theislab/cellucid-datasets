@@ -56,12 +56,54 @@ the next regeneration.
 
 The same rule covers each sample's published starting view. `scripts/publish_session_preset.mjs`
 writes `exports/<id>/default.cellucid-session` from a **Save State** file you
-produce in the viewer. Do not rename a save and commit it: a save carries the
-whole static chunk registry, a published preset carries five, and the viewer
-refuses the difference — a recorded Camera Path is refused by name. The script
-imports that rule from the viewer checkout rather than restating it, refuses to
-drop any chunk that still holds content, and reads its own output back through
-the reader before writing. It prints the digest and the three files that pin it.
+produce in the viewer:
+
+```bash
+node scripts/publish_session_preset.mjs --dataset suo \
+    --from ~/Downloads/cellucid-session-2026-08-04.cellucid-session
+```
+
+Do not rename a save and commit it. A save differs from a published preset in
+two ways, and the viewer refuses both while the file still looks perfectly
+valid:
+
+- **Chunks.** A save carries the whole static chunk registry, a published preset
+  carries five. A recorded Camera Path is refused by name.
+- **Identity.** You author a preset by serving the prepared generation locally,
+  so the save records that serve — `local-user`, and an id the local source
+  invented — while the catalog serves the same bytes as `local-demo` under the
+  generation's own id. The viewer compares both before applying a published
+  default, so a save committed as-is is refused on every open and the sample
+  shows none of its view.
+
+The script imports both rules from the viewer checkout rather than restating
+them. It refuses to drop a chunk that still holds content; it restates the
+identity only after re-deriving the generation's cell and gene counts from
+`dataset_identity.json` and recomputing its cell-order digest from the
+coordinates it ships, so a capture taken against different data is refused
+instead of relabelled; and it reads its own output back through the reader
+before writing.
+
+It then repoints `exports/datasets.json` at the new digest itself. That file is
+served straight off the default branch, so a preset replaced without it is live
+and broken the moment it is pushed — "does not match the advertised generation"
+— and the contract suite can only report that afterwards. The artifact and its
+advertisement now move together or not at all.
+
+Two pins stay manual, and both are review records rather than artifacts: the
+digest and the reviewed camera in `tests/catalog-contract.test.mjs` and
+`tests/session-presets-contract.test.mjs`. The script prints what to put there.
+Forgetting them fails CI; forgetting the catalog used to break the live site.
+
+Because this repository is served straight off its default branch, a commit here
+is live as soon as it is pushed. A hook checks the published states before the
+commit exists rather than after it is public — it runs the preset contract, in
+under a second, and only when a state or the catalog is staged. Install it once
+per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ---
 
