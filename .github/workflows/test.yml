@@ -38,14 +38,15 @@ jobs:
           tests/session-presets-contract.test.mjs
 
   publisher:
-    # The staged publisher in scripts/build_pancreas.py is POSIX-only by
-    # construction: it fsyncs the parent directory through
-    # os.open(directory, O_RDONLY), which Windows refuses, and it checks
-    # filesystem ownership through os.getuid(). Its suite is therefore run on
-    # the two platforms a Pancreas generation can actually be published from.
-    # It imports nothing outside the standard library -- every heavy import in
-    # build_pancreas.py is function-local, and the suite exercises only the
-    # stage/validate/publish helpers -- so this job installs no dependencies.
+    # The staged publisher in scripts/pinned_build.py, which both sample
+    # builders publish through, is POSIX-only by construction: it fsyncs the
+    # parent directory through os.open(directory, O_RDONLY), which Windows
+    # refuses, and it checks filesystem ownership through os.getuid(). Its
+    # suite is therefore run on the two platforms a generation can actually be
+    # published from. The module imports nothing outside the standard library
+    # at import time -- every numerical import is function-local, and the suite
+    # exercises only the stage/validate/publish helpers -- so this job installs
+    # no dependencies.
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
@@ -67,4 +68,4 @@ jobs:
       - name: Validate the staged publisher preserves the prior generation
         run: >-
           python -m unittest
-          tests/test_build_pancreas_publish.py
+          tests/test_pinned_build_publish.py

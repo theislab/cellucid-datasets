@@ -10,7 +10,7 @@ const REPOSITORY_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
 );
-const EXPORTS_ROOT = path.join(REPOSITORY_ROOT, 'exports');
+const EXPORTS_ROOT = path.join(REPOSITORY_ROOT, 'exports-v3');
 const GITIGNORE_PATH = path.join(REPOSITORY_ROOT, '.gitignore');
 const MAGIC = Buffer.from('CELLUCID_SESSION\n', 'utf8');
 const PUBLICATION_MANIFEST_BYTES =
@@ -33,7 +33,7 @@ const EXPECTED = Object.freeze({
     cellCount: 561_947,
     varCount: 5_103,
     cellOrderDigest: 'a229f7d3347dbb46',
-    sha256: '000063ef8b4617ae58d9275b9c18ac6a38bd950df35c828f2514046a3a210417',
+    sha256: '6357765ba0aa96bedd2caaa6076c81f44d8ff021d72b377f89e16ba2834aea49',
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
@@ -58,7 +58,7 @@ const EXPECTED = Object.freeze({
     cellCount: 219_731,
     varCount: 5_754,
     cellOrderDigest: 'd3a48cc719afee0b',
-    sha256: 'b246daf96914be1db847bc1dc565a191d1257f48525d2930beb7190a00c247a8',
+    sha256: '8cb657811976a23296cfb7ecd987ab634a808b093e9a14a656262a2d2d199440',
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
@@ -83,7 +83,7 @@ const EXPECTED = Object.freeze({
     cellCount: 71_650,
     varCount: 5_152,
     cellOrderDigest: '0174556a9edc0bfc',
-    sha256: 'cc88d26764ba24459463e14b90c39c37a16ae55512a0210820476a8352224682',
+    sha256: '32369a536a22585b1d905c3a778fa41a49e5e4591112313ecb6ed7709e45a756',
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
@@ -100,7 +100,7 @@ const EXPECTED = Object.freeze({
           1.1742444410048358,
         ]),
         yaw: -2.611194490192349,
-        pitch: -0.16539816339745403,
+        pitch: -0.16539816339745406,
       }),
     }),
   }),
@@ -108,7 +108,7 @@ const EXPECTED = Object.freeze({
     cellCount: 131_636,
     varCount: 3_691,
     cellOrderDigest: '2ece95555de9b052',
-    sha256: '5adb4368b7b0a2d4b892785d6486c125308afd8f632e649f67b648596e0a49ac',
+    sha256: '76af3a7897d6e7fae330d59e6665a1cfabb7736321b3d11fe5ffb6ecfcf8a05d',
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
@@ -122,9 +122,9 @@ const EXPECTED = Object.freeze({
         position: Object.freeze([
           -1.2240324140008385,
           -0.4738320041178864,
-          -1.5988128088210332,
+          -1.5988128088210334,
         ]),
-        yaw: 0.9173931100687926,
+        yaw: 0.9173931100687928,
         pitch: 0.23111476130647451,
       }),
     }),
@@ -133,7 +133,7 @@ const EXPECTED = Object.freeze({
     cellCount: 3_696,
     varCount: 3_753,
     cellOrderDigest: '6a65d001fc13301c',
-    sha256: 'a37e0500ecac42ec123dc958f19f5190a8124c6cb2f12125af4e646660b3ec42',
+    sha256: '598cda75e3c6c05a0f01a1d64d4b8a532fdc442ce50455c14f7fe9e79b9034f6',
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
@@ -256,18 +256,15 @@ const PUBLISHED_DEFAULT_PROFILE_KEYS = Object.freeze([
   'label',
   'datasetDependent',
 ]);
-/** `MAX_PUBLISHED_DEFAULT_STATE_BYTES` in the session serializer. */
-const MAX_PRESET_BYTES = 32 * 1024;
-/** `MAX_PUBLISHED_DEFAULT_UNCOMPRESSED_BYTES`, per chunk and in aggregate. */
-const MAX_PRESET_UNCOMPRESSED_BYTES = 64 * 1024;
 /**
- * The 32 KiB ceiling had no floor beneath it, so a preset whose chunks all
- * decoded to `{}` was "lightweight" enough to pass. The reader refuses a
+ * A published default has no size ceiling (the catalog declares its exact
+ * length in `state_bytes`), so the only size property worth asserting is a
+ * floor: a preset whose chunks all decoded to `{}` would otherwise pass. The reader refuses a
  * `core/state` whose `uiControls` record is not the complete current control
  * inventory (`validateCompleteControls()` in
  * `cellucid/assets/js/app/state-serializer/ui-controls.js`), and that inventory
  * alone is what makes these files as large as they are: the five published
- * presets measure 2,716 to 2,728 bytes. Anything under 2 KiB cannot be carrying
+ * presets measure 3,235 to 3,434 bytes. Anything under 2 KiB cannot be carrying
  * a reviewed view.
  *
  * This range is prose, not a pin, and it went stale once already: it still read
@@ -324,14 +321,14 @@ const UI_CONTROL_TYPES = Object.freeze([
   'text',
 ]);
 /**
- * The documented reviewed view: `cell_type` colouring, light theme, grid
- * background. `04_official_sample_states.md` states these three by name, so they
+ * The documented reviewed view: `cell_type` colouring, light theme, Studio
+ * (light) background. `04_official_sample_states.md` states these three by name, so they
  * are asserted by name rather than left to the byte pin.
  */
 const EXPECTED_ACTIVE_FIELD_KEY = 'cell_type';
 const EXPECTED_ACTIVE_FIELD_KIND = 'category';
 const EXPECTED_THEME = 'light';
-const EXPECTED_BACKGROUND = 'grid';
+const EXPECTED_BACKGROUND = 'studio';
 /**
  * The reviewed presets show the generation exactly as it was prepared: no field
  * or category is renamed, none is hidden, and none is invented. The last of
@@ -396,8 +393,8 @@ const CAMERA_DERIVATION_TOLERANCE = 1e-12;
  * against `dataset_identity.json`'s `created_at`; a preset older than its own
  * export was carried over from an earlier one, and the row indices it stores
  * denote cells that generation had not laid out yet. And the reviewed presets
- * are one review pass: all five were captured inside 36.581 seconds on
- * 2026-07-31, so a preset re-captured on its own, months from the other four,
+ * are one review pass: all five were captured inside 7.858 seconds on
+ * 2026-10-18, so a preset re-captured on its own, months from the other four,
  * shows a view nobody looked at beside the rest. The window is a day rather
  * than a minute because a re-capture may reasonably span a working session.
  *
@@ -413,20 +410,20 @@ const MAXIMUM_REVIEW_PASS_SPAN_MS = 24 * 60 * 60 * 1000;
 /* published-generations:begin */
 /**
  * The one definition of "published" these suites have, held byte-identical in
- * every file that enumerates `exports/`. Two files that each decided for
- * themselves which directories under `exports/` counted governed different
+ * every file that enumerates `exports-v3/`. Two files that each decided for
+ * themselves which directories under `exports-v3/` counted governed different
  * sets of artifacts while reading as though they governed the same set, and
  * whichever definition was widened first would have won in silence.
  *
  * The rule itself is not restated here. It is read out of `.gitignore`, which
- * is what actually decides whether a directory under `exports/` is committed:
- * every `/exports/<glob>/` line names a tree the repository keeps out, and a
+ * is what actually decides whether a directory under `exports-v3/` is committed:
+ * every `/exports-v3/<glob>/` line names a tree the repository keeps out, and a
  * hidden entry is never a prepared generation.
  * `repository-organization-contract.test.mjs` fails if a copy of this block
- * diverges from the others, if a suite that enumerates `exports/` carries no
+ * diverges from the others, if a suite that enumerates `exports-v3/` carries no
  * copy, or if any suite selects generations by a name convention of its own.
  */
-const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports/';
+const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports-v3/';
 
 function publishedGenerationNames(entries, gitignoreText) {
   const excluded = gitignoreText
@@ -440,7 +437,7 @@ function publishedGenerationNames(entries, gitignoreText) {
     .map((line) => line.slice(PUBLISHED_GENERATION_IGNORE_SCOPE.length, -1));
   assert.ok(
     excluded.length > 0,
-    '.gitignore names no uncommitted directory under exports/, so the rule '
+    '.gitignore names no uncommitted directory under exports-v3/, so the rule '
       + 'these suites select published generations by is no longer there to read'
   );
   const patterns = excluded.map(
@@ -568,39 +565,115 @@ function digestCellOrder(positions) {
 /**
  * Recompute one generation's cell-order digest out of the coordinates it
  * publishes, the way the application does when it decides whether to accept a
- * preset: decompress the advertised point payload, normalize it in place, then
- * digest it in dataset row order.
+ * preset: decompress the payload of the embedding the fingerprint names,
+ * normalize it in place, then digest it in dataset row order. The viewer's
+ * `normalizePositions()` and `digestCellOrder()` treat the axes a 1-D or 2-D
+ * layout lacks as the constant zero, so the payload is read into XYZ triples
+ * with a zero third (and second) component, which is the word sequence both
+ * fold, and the 3-D transcriptions above apply unchanged.
  */
-async function digestPublishedCellOrder(datasetId, identity, dimension, label) {
-  assert.equal(
-    dimension,
-    3,
-    `${label} digest reproduction covers the 3-D payload the viewer opens on; `
-      + 'a 1-D or 2-D capture would have to be padded to three components '
-      + 'before it could be digested',
+async function digestPublishedCellOrder(datasetId, identity, embeddingId, label) {
+  const item = identity.embeddings.items[embeddingId];
+  assert.ok(
+    item !== undefined,
+    `${label} fingerprint names the embedding '${embeddingId}', which the `
+      + 'generation does not publish',
   );
-  const relative = identity.embeddings.files[`${dimension}d`];
-  assert.equal(
-    typeof relative,
-    'string',
-    `${label} generation must advertise a ${dimension}D point payload`,
-  );
+  const { dimension, file: relative } = item;
   const compressed = await readFile(
     path.join(EXPORTS_ROOT, datasetId, relative),
   );
   const decompressed = gunzipSync(compressed);
   assert.equal(
     decompressed.length,
-    identity.stats.n_cells * 3 * 4,
-    `${label} ${relative} must hold one Float32 triple per published cell`,
+    identity.stats.n_cells * dimension * 4,
+    `${label} ${relative} must hold one Float32 per axis per published cell`,
   );
   // A pooled Buffer carries an arbitrary byteOffset; the digest reads the
   // coordinates as 32-bit words, which requires a 4-byte aligned buffer.
   const aligned = new ArrayBuffer(decompressed.byteLength);
   new Uint8Array(aligned).set(decompressed);
-  const positions = new Float32Array(aligned);
+  const source = new Float32Array(aligned);
+  const positions = new Float32Array(identity.stats.n_cells * 3);
+  for (let cell = 0; cell < identity.stats.n_cells; cell++) {
+    for (let axis = 0; axis < dimension; axis++) {
+      positions[3 * cell + axis] = source[dimension * cell + axis];
+    }
+  }
   normalizePositions(positions);
   return digestCellOrder(positions);
+}
+
+/**
+ * The data mapping a published default is captured in: the export kind, every
+ * dimension's slot holding that dimension's default embedding, and only vector
+ * bindings the generation declares. A preset captured in another mapping is
+ * skipped at startup whenever a link resolves the default one, so publishing
+ * one would ship a view that is never applied.
+ */
+function codePointCompare(left, right) {
+  const a = [...left];
+  const b = [...right];
+  for (let index = 0; index < Math.min(a.length, b.length); index++) {
+    const difference = a[index].codePointAt(0) - b[index].codePointAt(0);
+    if (difference !== 0) return difference;
+  }
+  return a.length - b.length;
+}
+
+/**
+ * The generation's default export data mapping, exactly as the viewer derives
+ * it (`exportDataMapping()` in `cellucid/assets/js/data/data-mapping.js`):
+ * every declared embedding is enabled (sorted by id in code-point order), each
+ * dimension defaults to the embedding `defaults` names, genes are named by the
+ * default name set, and every declared vector binding is in use, sorted by
+ * embedding id, then field.
+ */
+async function defaultExportMapping(datasetId, identity) {
+  const defaults = {};
+  for (const dimension of [1, 2, 3]) {
+    const id = identity.embeddings.defaults[`${dimension}d`];
+    defaults[`${dimension}d`] = id === undefined ? null : { key: id, columns: null };
+  }
+  const embeddings = {
+    enabled: Object.keys(identity.embeddings.items)
+      .sort(codePointCompare)
+      .map(key => ({ key, columns: null })),
+    defaults,
+  };
+  let geneNames = 'index';
+  if (identity.stats.n_genes > 0) {
+    const varManifest = JSON.parse(
+      await readFile(path.join(EXPORTS_ROOT, datasetId, 'var_manifest.json'), 'utf8'),
+    );
+    const source = varManifest.gene_name_sets[0].source;
+    geneNames = source === null ? 'index' : `column:${source}`;
+  }
+  const vectorFields = [];
+  for (const [field, entry] of Object.entries(identity.vector_fields?.fields ?? {})) {
+    for (const key of Object.keys(entry.files)) {
+      vectorFields.push({ field, embedding: { key, columns: null } });
+    }
+  }
+  vectorFields.sort((left, right) =>
+    codePointCompare(left.embedding.key, right.embedding.key)
+      || codePointCompare(left.field, right.field));
+  return { kind: 'export', embeddings, geneNames, vectorFields };
+}
+
+async function assertDefaultExportMapping(mapping, datasetId, identity, label) {
+  assert.deepEqual(
+    mapping,
+    await defaultExportMapping(datasetId, identity),
+    `${label} must be captured in the generation's default data mapping: every `
+      + 'declared embedding enabled, each dimension defaulting to its default '
+      + 'embedding, its default gene names, and every published vector binding',
+  );
+  assert.deepEqual(
+    Object.keys(mapping),
+    ['kind', 'embeddings', 'geneNames', 'vectorFields'],
+    `${label} dataMapping must be in canonical key order`,
+  );
 }
 
 /**
@@ -800,8 +873,8 @@ async function findStateArtifactsBelow(directory) {
 
 /**
  * Every state artifact this repository publishes: the ones sitting beside a
- * published generation, and any left at the root of `exports/` itself. The
- * walk used to descend into every directory under `exports/`, including the
+ * published generation, and any left at the root of `exports-v3/` itself. The
+ * walk used to descend into every directory under `exports-v3/`, including the
  * `_`-prefixed local scratch exports that `.gitignore` excludes and that
  * `catalog-contract.test.mjs` never swept, so the two files disagreed about
  * what "published" meant while both read as though they governed the same
@@ -830,16 +903,16 @@ function toRepositoryRelativePath(root, absolute, pathApi = path) {
 test('state artifact inventory uses portable repository paths', () => {
   assert.equal(
     toRepositoryRelativePath(
-      'D:\\workspace\\exports',
-      'D:\\workspace\\exports\\suo\\default.cellucid-session',
+      'D:\\workspace\\exports-v3',
+      'D:\\workspace\\exports-v3\\suo\\default.cellucid-session',
       path.win32,
     ),
     'suo/default.cellucid-session',
   );
   assert.equal(
     toRepositoryRelativePath(
-      '/workspace/exports',
-      '/workspace/exports/suo/state-snapshots.json',
+      '/workspace/exports-v3',
+      '/workspace/exports-v3/suo/state-snapshots.json',
       path.posix,
     ),
     'suo/state-snapshots.json',
@@ -870,6 +943,10 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
     assert.ok(catalogEntry, `catalog must contain ${datasetId}`);
     assert.equal(catalogEntry.state_manifest, 'state-snapshots.json');
     assert.equal(catalogEntry.state_sha256, expected.sha256);
+    assert.ok(
+      Number.isSafeInteger(catalogEntry.state_bytes) && catalogEntry.state_bytes > 0,
+      `${datasetId} catalog entry must declare its state's exact byte length`,
+    );
     const publicationManifestPath = path.join(
       directory,
       catalogEntry.state_manifest,
@@ -898,7 +975,11 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
 
     const label = `${datasetId}/${filename}`;
     const bytes = await readFile(path.join(directory, filename));
-    assert.ok(bytes.length < 32 * 1024, `${label} must remain lightweight`);
+    assert.equal(
+      bytes.length,
+      catalogEntry.state_bytes,
+      `${label} length must be the catalog's declared state_bytes`,
+    );
     assert.equal(
       createHash('sha256').update(bytes).digest('hex'),
       catalogEntry.state_sha256,
@@ -909,12 +990,19 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
     assert.deepEqual([...chunks.keys()].sort(), EXPECTED_CHUNK_IDS);
     assertExactKeys(
       manifest.datasetFingerprint,
-      ['sourceType', 'datasetId', 'cellCount', 'varCount', 'cellOrder'],
+      [
+        'sourceType',
+        'datasetId',
+        'cellCount',
+        'varCount',
+        'cellOrder',
+        'dataMapping',
+      ],
       `${label} fingerprint`,
     );
     assertExactKeys(
       manifest.datasetFingerprint.cellOrder,
-      ['dimension', 'digest'],
+      ['embedding', 'dimension', 'digest'],
       `${label} fingerprint cellOrder`,
     );
     assert.match(
@@ -922,16 +1010,23 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
       /^[0-9a-f]{16}$/,
       `${label} cell-order digest must be 16 lowercase hexadecimal characters`,
     );
-    assert.deepEqual(manifest.datasetFingerprint, {
+    const { dataMapping, ...fingerprint } = manifest.datasetFingerprint;
+    const generation = await readGenerationIdentity(datasetId);
+    assert.deepEqual(fingerprint, {
       sourceType: EXPECTED_SOURCE_TYPE,
       datasetId,
       cellCount: expected.cellCount,
       varCount: expected.varCount,
       cellOrder: {
+        embedding: {
+          key: generation.embeddings.defaults[`${EXPECTED_CELL_ORDER_DIMENSION}d`],
+          columns: null,
+        },
         dimension: EXPECTED_CELL_ORDER_DIMENSION,
         digest: expected.cellOrderDigest,
       },
     });
+    await assertDefaultExportMapping(dataMapping, datasetId, generation, label);
     assert.equal(
       chunks.has('cinematic/camera'),
       false,
@@ -944,7 +1039,7 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
       core,
       [
         'camera',
-        'liveDimensionLevel',
+        'liveEmbedding',
         'uiControls',
         'filters',
         'activeFields',
@@ -952,18 +1047,23 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
       ],
       `${label} core state`,
     );
+    assert.deepEqual(
+      core.liveEmbedding,
+      { key: generation.embeddings.defaults[`${generation.embeddings.default_dimension}d`], columns: null },
+      `${label} live view must show the generation's opening default embedding`,
+    );
     assert.deepEqual(core.activeFields, {
       activeFieldKey: 'cell_type',
       activeFieldSource: 'obs',
     });
     assert.deepEqual(core.filters, {});
-    assert.equal(core.liveDimensionLevel, 3);
+    assert.equal(generation.embeddings.items[core.liveEmbedding.key].dimension, 3);
     // Each preset frames its own dataset, so this is pinned per generation
     // rather than once: the presets shared one opening camera until each was
     // re-captured on the view its own embedding reads best in.
     assert.deepEqual(core.camera, expected.camera);
     assert.equal(core.uiControls['theme-select'].value, 'light');
-    assert.equal(core.uiControls['background-select'].value, 'grid');
+    assert.equal(core.uiControls['background-select'].value, EXPECTED_BACKGROUND);
 
     assertExactKeys(
       core.multiview,
@@ -982,7 +1082,7 @@ for (const [datasetId, expected] of Object.entries(EXPECTED)) {
 }
 
 /**
- * Reading one preset out of `exports/` exactly once, for the content contracts
+ * Reading one preset out of `exports-v3/` exactly once, for the content contracts
  * below. Every assertion in this file that names a payload rather than a byte
  * count reads from here.
  */
@@ -1002,6 +1102,7 @@ test('every catalog entry advertising a state publishes one reviewed preset', ()
     .filter(entry => (
       Object.hasOwn(entry, 'state_manifest')
       || Object.hasOwn(entry, 'state_sha256')
+      || Object.hasOwn(entry, 'state_bytes')
     ))
     .map(entry => entry.id)
     .sort();
@@ -1054,19 +1155,8 @@ for (const datasetId of PRESET_DATASET_IDS) {
             && chunk.uncompressedBytes > 0,
           `${label} chunk ${profile.id} must decode to at least one byte`,
         );
-        assert.ok(
-          chunk.uncompressedBytes <= MAX_PRESET_UNCOMPRESSED_BYTES,
-          `${label} chunk ${profile.id} exceeds the reader's per-chunk `
-            + `${MAX_PRESET_UNCOMPRESSED_BYTES}-byte uncompressed limit`,
-        );
-        aggregateUncompressedBytes += chunk.uncompressedBytes;
         accountedBytes += 4 + chunk.storedBytes;
       }
-      assert.ok(
-        aggregateUncompressedBytes <= MAX_PRESET_UNCOMPRESSED_BYTES,
-        `${label} decodes to ${aggregateUncompressedBytes} bytes, over the `
-          + `reader's ${MAX_PRESET_UNCOMPRESSED_BYTES}-byte aggregate limit`,
-      );
       assert.equal(
         bytes.length,
         accountedBytes,
@@ -1077,11 +1167,7 @@ for (const datasetId of PRESET_DATASET_IDS) {
         bytes.length >= MINIMUM_REVIEWED_PRESET_BYTES,
         `${label} is ${bytes.length} bytes, below the `
           + `${MINIMUM_REVIEWED_PRESET_BYTES}-byte floor a reviewed view needs; `
-          + 'the 32 KiB ceiling alone accepted a preset that restored nothing',
-      );
-      assert.ok(
-        bytes.length < MAX_PRESET_BYTES,
-        `${label} must remain lightweight`,
+          + 'a size check without a floor accepts a preset that restores nothing',
       );
     },
   );
@@ -1137,18 +1223,24 @@ for (const datasetId of PRESET_DATASET_IDS) {
           + 'publishes as its default, which is the only one the sample picker '
           + 'opens on',
       );
-      assert.ok(
-        identity.embeddings.available_dimensions.includes(
-          fingerprint.cellOrder.dimension,
-        ),
-        `${label} captured dimension must be one the generation publishes`,
+      assert.equal(
+        fingerprint.cellOrder.embedding?.key,
+        identity.embeddings.defaults[`${fingerprint.cellOrder.dimension}d`],
+        `${label} must have been captured on the default embedding of the `
+          + 'dimension it records',
       );
+      assert.equal(
+        identity.embeddings.items[fingerprint.cellOrder.embedding.key].dimension,
+        fingerprint.cellOrder.dimension,
+        `${label} cell-order embedding must have the dimension it records`,
+      );
+      await assertDefaultExportMapping(fingerprint.dataMapping, datasetId, identity, label);
       assert.equal(
         fingerprint.cellOrder.digest,
         await digestPublishedCellOrder(
           datasetId,
           identity,
-          fingerprint.cellOrder.dimension,
+          fingerprint.cellOrder.embedding.key,
           label,
         ),
         `${label} cell-order digest does not reproduce from the coordinates the `
@@ -1215,7 +1307,7 @@ for (const datasetId of PRESET_DATASET_IDS) {
         `${label} renames the same field it activates`,
       );
       assert.equal(
-        core.liveDimensionLevel,
+        identity.embeddings.items[core.liveEmbedding.key].dimension,
         identity.embeddings.default_dimension,
         `${label} must open on the dimension the generation publishes as its `
           + 'default',
@@ -1393,13 +1485,11 @@ for (const datasetId of PRESET_DATASET_IDS) {
             + "select's options from the generation and refuses a value that is "
             + 'not among them',
         );
+        const liveEmbedding = core.liveEmbedding.key;
         assert.ok(
-          vectorFields[selectedVectorField].available_dimensions.includes(
-            core.liveDimensionLevel,
-          ),
+          Object.hasOwn(vectorFields[selectedVectorField].files, liveEmbedding),
           `${label} selects '${selectedVectorField}', which the generation does `
-            + `not publish for the ${core.liveDimensionLevel}D view the preset `
-            + 'opens on',
+            + `not bind to '${liveEmbedding}', the embedding the preset opens on`,
         );
       }
     },

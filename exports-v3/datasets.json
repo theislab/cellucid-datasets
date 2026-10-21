@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "default": "suo",
+  "datasets": [
+    {
+      "id": "suo",
+      "path": "suo/",
+      "state_manifest": "state-snapshots.json",
+      "state_sha256": "6357765ba0aa96bedd2caaa6076c81f44d8ff021d72b377f89e16ba2834aea49",
+      "state_bytes": 3235
+    },
+    {
+      "id": "garcia",
+      "path": "garcia/",
+      "state_manifest": "state-snapshots.json",
+      "state_sha256": "8cb657811976a23296cfb7ecd987ab634a808b093e9a14a656262a2d2d199440",
+      "state_bytes": 3268
+    },
+    {
+      "id": "he",
+      "path": "he/",
+      "state_manifest": "state-snapshots.json",
+      "state_sha256": "32369a536a22585b1d905c3a778fa41a49e5e4591112313ecb6ed7709e45a756",
+      "state_bytes": 3256
+    },
+    {
+      "id": "kanemaru",
+      "path": "kanemaru/",
+      "state_manifest": "state-snapshots.json",
+      "state_sha256": "76af3a7897d6e7fae330d59e6665a1cfabb7736321b3d11fe5ffb6ecfcf8a05d",
+      "state_bytes": 3275
+    },
+    {
+      "id": "pancreas",
+      "path": "pancreas/",
+      "state_manifest": "state-snapshots.json",
+      "state_sha256": "598cda75e3c6c05a0f01a1d64d4b8a532fdc442ce50455c14f7fe9e79b9034f6",
+      "state_bytes": 3434
+    }
+  ]
+}

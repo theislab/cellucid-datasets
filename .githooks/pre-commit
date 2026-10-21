@@ -4,7 +4,7 @@
 # This repository is served straight off its default branch, so a commit here is
 # live as soon as it is pushed and the contract workflow can only report on it
 # afterwards. The failure that motivated this hook was a Save State file copied
-# into `exports/` under the published name: a valid file, the wrong document —
+# into `exports-v3/` under the published name: a valid file, the wrong document —
 # too many chunks, the capturing serve's identity rather than the catalog's, and
 # a digest the catalog no longer advertised. The site served it, and every
 # sample opened with none of its published view.
@@ -25,7 +25,7 @@ set -eu
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
 case "$staged" in
-  *default.cellucid-session*|*state-snapshots.json*|*exports/datasets.json*) ;;
+  *default.cellucid-session*|*state-snapshots.json*|*exports-v3/datasets.json*) ;;
   *) exit 0 ;;
 esac
 

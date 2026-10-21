@@ -1,0 +1,591 @@
+{
+  "schema_version": 3,
+  "dataset_id": "suo",
+  "builder": "scripts/build_atlas.py",
+  "source": {
+    "file": "suo.h5ad",
+    "size_bytes": 2356891458,
+    "sha256": "71da5c1cc915d6843abe90b8bf59248b8e5a30e3d7f10392f7ff3096cb800f7f",
+    "description": "suo.h5ad, the suo_developmental_complete.h5ad output of the scVI/scANVI integration pipeline: a derivative of ArrayExpress study E-MTAB-11343, not an archive download.",
+    "redistribution": "Not redistributable. The file is never copied into this repository; the builder reads it from --source-dir and refuses any other bytes.",
+    "upstream_accession": "E-MTAB-11343",
+    "upstream_url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11343"
+  },
+  "citation": {
+    "text": "Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11343."
+  },
+  "recipe": [
+    "notebooks/suo_1_prepare_anndata.ipynb",
+    "notebooks/suo_2_export_cellucid.ipynb"
+  ],
+  "ownership": {
+    "source_owned": [
+      "raw integer counts X and the ordered cell identifiers",
+      "every obs column and its category order",
+      "the scANVI latent representation obsm['scanvi']",
+      "the unintegrated PCA obsm['X_pca'], published as its first two components",
+      "the upstream gene identifiers in varnames/, aligned to the matrix columns by position"
+    ],
+    "derived": [
+      "the published cell subset obs['LVL0'] == 'Haematopoeitic_lineage', applied before anything else",
+      "the dropped scVI bookkeeping columns _scvi_batch and _scvi_labels",
+      "age as a continuous field, converted from its categorical numeric strings",
+      "categories the subset emptied, pruned",
+      "whitespace-padded organ labels, trimmed without moving any cell",
+      "one 15-nearest-neighbour graph on obsm['scanvi'], which is also the published connectivity",
+      "the 1D, 2D and 3D UMAPs of that one graph",
+      "gene symbols resolved through ensembl_to_hgnc.pickle; genes without one are not published"
+    ]
+  },
+  "selection": {
+    "field": "LVL0",
+    "value": "Haematopoeitic_lineage",
+    "n_cells": 561947
+  },
+  "input_contract": {
+    "n_cells": 841922,
+    "n_genes": 8192,
+    "X_nnz": 98285588,
+    "X_canonical_csr_sha256": "94250d961066a3db47ba70dd76b3e94d3eada67d1daec50b48dfaf691217e99e",
+    "obs_fields": [
+      "sample_ID",
+      "organ",
+      "age",
+      "cell_type",
+      "sex",
+      "sex_inferred",
+      "concatenated_integration_covariates",
+      "integration_donor",
+      "integration_biological_unit",
+      "integration_sample_status",
+      "integration_library_platform_coarse",
+      "n_genes",
+      "_scvi_batch",
+      "_scvi_labels",
+      "LVL3",
+      "LVL2",
+      "LVL1",
+      "LVL0"
+    ],
+    "obs_names_json_sha256": "4329c9ea8d7ff1248282b276506092f3f8cf22ed5285d96955db9ee108cae354",
+    "obs_digests": {
+      "sample_ID": {
+        "categories_json_sha256": "54872125d24b5aa3261e260d65895ba08e10a041611f6824d6a2b614c5dd8101",
+        "codes_i32_sha256": "d1cc5e93b25b78233e4115a4953304f69fd2eabf8e49e167a774aedddb3e7b5b"
+      },
+      "organ": {
+        "categories_json_sha256": "602c3a943cbf4081d330340de3ef3eb29db840e2a849c4db31709f2b689f6900",
+        "codes_i32_sha256": "8f756c3eb5c5a4cae574b898cdce9904fb2f9080ef7280d8cfa4d9b028d5877b"
+      },
+      "age": {
+        "categories_json_sha256": "6b79f22ba2f861872717eb528fca1bf3ee684e1c33785a90ec15b213ffd1af4a",
+        "codes_i32_sha256": "65c71b4c0e03e5faa956135c8310c4b3c4b90dab00a0d44197726b06b514131d"
+      },
+      "cell_type": {
+        "categories_json_sha256": "3a3c994a353ba4a4eecde32da01469f14c1ac268ed3cd4192c6ea5a9c2957255",
+        "codes_i32_sha256": "4381293f651dea691797e36253bb110b406202ef0903eb231d5ef7bf81a83288"
+      },
+      "sex": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "f1de96a87a47ccdaa805b59a5dbf892e7ef627547300bcdfb9f7a093bbad0032"
+      },
+      "sex_inferred": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "f1de96a87a47ccdaa805b59a5dbf892e7ef627547300bcdfb9f7a093bbad0032"
+      },
+      "concatenated_integration_covariates": {
+        "categories_json_sha256": "53555b92bea2dad28630f3aa6a0dc5565ab7d078ae7a8e554c0f3041f26f47ac",
+        "codes_i32_sha256": "52912138455020292f30cbc23d1328773c51f9ec2c99a8f2717f4b4e88308bce"
+      },
+      "integration_donor": {
+        "categories_json_sha256": "566531f6d39f20f3ec53d4d336741fbf1737f65a361e4534a15f151e5726444a",
+        "codes_i32_sha256": "d1cc5e93b25b78233e4115a4953304f69fd2eabf8e49e167a774aedddb3e7b5b"
+      },
+      "integration_biological_unit": {
+        "categories_json_sha256": "cc920d9290929373c95571f045fb8a3fbdf62710350986303ce7b2cbeba38780",
+        "codes_i32_sha256": "24e6854f323676099048de781d4fe5521a6a0f081f5be4c1fc4f9255c3f7b7b2"
+      },
+      "integration_sample_status": {
+        "categories_json_sha256": "384e1692d8e509df1e898dadd5a8ec847fcbc39edeef5ef4ba254c9bf2cf13fe",
+        "codes_i32_sha256": "24e6854f323676099048de781d4fe5521a6a0f081f5be4c1fc4f9255c3f7b7b2"
+      },
+      "integration_library_platform_coarse": {
+        "categories_json_sha256": "32e8e1697e02cb8c4e7faea52f5de0d5a4185aef71d0a512cb6ec21344050a1c",
+        "codes_i32_sha256": "aa4a39fc80832112ffc468edbf7cfed344cf573d684b512f55dfab093391c643"
+      },
+      "n_genes": {
+        "f64_sha256": "684160cd8342913cb6566d74aa7c8678ac721b6f22973ddcdcbb434211bd52dc"
+      },
+      "_scvi_batch": {
+        "f64_sha256": "317fe7a36215aabf8466baf657f1134777cda5bcbd862823387c1ff0930b4c87"
+      },
+      "_scvi_labels": {
+        "f64_sha256": "b8d82b9a787280cb748490465f9c48238cd5da4372d8a94cb72d0b085dd92611"
+      },
+      "LVL3": {
+        "categories_json_sha256": "8fba0589a0328f39a16e01adbd90f7dce0af5ef7cbf2351438f9ce1d4e257221",
+        "codes_i32_sha256": "16211259b27ed61b55491ca3ff437e40d6b9b18bcee0c8b31212a0a5458aff6a"
+      },
+      "LVL2": {
+        "categories_json_sha256": "bbf8b75955535a9026537e87a1896c1db43cc7d150901f32f6387e844d8f401b",
+        "codes_i32_sha256": "3f27e0302885708b8c654f4c418199310b77322f1e59fd78c38eaaf2c7c522a4"
+      },
+      "LVL1": {
+        "categories_json_sha256": "aadf2483e2f9e6a2a58d4fb7da7f8ad86436188d811a6a89286da78e640930c5",
+        "codes_i32_sha256": "e78cee327f303b9e3cacfedf0c9e22f155d5db1e821106b69c026449651e4ae1"
+      },
+      "LVL0": {
+        "categories_json_sha256": "af09f63606b5a8b87beece1566ee931a081e9a653cf597ecc4ed73a598e6603e",
+        "codes_i32_sha256": "cd47658129d87c5d6bc4e7d8ea872c2927ffae611102af1582545b4650854528"
+      }
+    },
+    "obsm": {
+      "scanvi": {
+        "shape": [
+          841922,
+          24
+        ],
+        "f32_sha256": "ec4570c71f18b134831574884121eec8ed8d9966504cc4f9ea51832089ad93f9"
+      },
+      "X_pca": {
+        "shape": [
+          841922,
+          50
+        ],
+        "f32_sha256": "764a83c5f04abd8ee7ea836371fc2fe6442f1268b4e35c4b2b802ac5e704d9f0"
+      }
+    }
+  },
+  "obs_contract": {
+    "dropped_fields": [
+      "_scvi_batch",
+      "_scvi_labels"
+    ],
+    "pruned_categories": {
+      "cell_type": [
+        91,
+        69
+      ],
+      "LVL3": [
+        91,
+        69
+      ],
+      "LVL2": [
+        34,
+        16
+      ],
+      "LVL1": [
+        19,
+        4
+      ],
+      "LVL0": [
+        5,
+        1
+      ]
+    },
+    "continuous_from_categorical": [
+      "age"
+    ],
+    "trimmed_labels": {
+      "organ": 8
+    },
+    "published_fields": [
+      "sample_ID",
+      "organ",
+      "age",
+      "cell_type",
+      "sex",
+      "sex_inferred",
+      "concatenated_integration_covariates",
+      "integration_donor",
+      "integration_biological_unit",
+      "integration_sample_status",
+      "integration_library_platform_coarse",
+      "n_genes",
+      "LVL3",
+      "LVL2",
+      "LVL1",
+      "LVL0"
+    ],
+    "published_digests": {
+      "sample_ID": {
+        "categories_json_sha256": "54872125d24b5aa3261e260d65895ba08e10a041611f6824d6a2b614c5dd8101",
+        "codes_i32_sha256": "a50ea63c29a730696479e4669f5935a4475d109626546bd33a3afddf3631795d"
+      },
+      "organ": {
+        "categories_json_sha256": "5fb36e85e54f0fdd6517ffb99b571a8336bd6bac67732022e75033446efdf736",
+        "codes_i32_sha256": "e3dd6914e924f515c55272069c14a796898246d109a57f9306d36e86b3e6c5b4"
+      },
+      "age": {
+        "f64_sha256": "7e720f251cc687c3ea7cd835a8cc052f613ab75a1fc399df64301edc9080d6f4"
+      },
+      "cell_type": {
+        "categories_json_sha256": "94ff1e0f6257fc7624a21ef8d09191ed167ae1a5148750c3e36a49cc6f29e114",
+        "codes_i32_sha256": "837a97c8e760eac29e1e359fb1a1ea154e88d5d2bb29250e4e2a7e20b66d3f90"
+      },
+      "sex": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "51e0e36bafdb7dcb995e422ea98d171ea769d082973cc88e14fe431248dfd173"
+      },
+      "sex_inferred": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "51e0e36bafdb7dcb995e422ea98d171ea769d082973cc88e14fe431248dfd173"
+      },
+      "concatenated_integration_covariates": {
+        "categories_json_sha256": "53555b92bea2dad28630f3aa6a0dc5565ab7d078ae7a8e554c0f3041f26f47ac",
+        "codes_i32_sha256": "dcfa84cbe577eac0e491840682bfa3392752add89c1edcce7fa0ca0d3e3fed03"
+      },
+      "integration_donor": {
+        "categories_json_sha256": "566531f6d39f20f3ec53d4d336741fbf1737f65a361e4534a15f151e5726444a",
+        "codes_i32_sha256": "a50ea63c29a730696479e4669f5935a4475d109626546bd33a3afddf3631795d"
+      },
+      "integration_biological_unit": {
+        "categories_json_sha256": "cc920d9290929373c95571f045fb8a3fbdf62710350986303ce7b2cbeba38780",
+        "codes_i32_sha256": "857cc3852d445cac845fb49121cc0b9b612d20ab453807a8e5900f4e67b77ce8"
+      },
+      "integration_sample_status": {
+        "categories_json_sha256": "384e1692d8e509df1e898dadd5a8ec847fcbc39edeef5ef4ba254c9bf2cf13fe",
+        "codes_i32_sha256": "857cc3852d445cac845fb49121cc0b9b612d20ab453807a8e5900f4e67b77ce8"
+      },
+      "integration_library_platform_coarse": {
+        "categories_json_sha256": "32e8e1697e02cb8c4e7faea52f5de0d5a4185aef71d0a512cb6ec21344050a1c",
+        "codes_i32_sha256": "4de77d247f7f48f5629b82a498306a43cfd2c0498b4b1cd2ee5bb8cdf3b7c2c9"
+      },
+      "n_genes": {
+        "f64_sha256": "d80d4501fd0a23e8cb0e98ea1b190be7ecb0ea10dc096ef9de1b77518151a57c"
+      },
+      "LVL3": {
+        "categories_json_sha256": "c01f151a650129833188e9c6a5a0c661bc451bda68801034d1b6ae516c77606d",
+        "codes_i32_sha256": "eececa677bc7a898c1d73e9a47fd9cf8409ddb0b5f025041e8ce973e693de69e"
+      },
+      "LVL2": {
+        "categories_json_sha256": "f93335a773ceb9341712201f1d93f494fd3b700ee6a5ac0d6470bb14e5fde3e7",
+        "codes_i32_sha256": "4814de171994686d2c60efed7784cd015e255c0391e916da6613738ff79e704c"
+      },
+      "LVL1": {
+        "categories_json_sha256": "43c09152aefb931e46a69a09f27398cd587aeb2270fd31633b07c2e9718943f9",
+        "codes_i32_sha256": "b6b02358b4a33ef67cab012a17bd566d8b5933531a9ad727e7741c949f2c4de9"
+      },
+      "LVL0": {
+        "categories_json_sha256": "5db8575acb0d874ff0f82a7dfa3f36933db149070d892cbc868da4cbc6e3a4cd",
+        "codes_i32_sha256": "857cc3852d445cac845fb49121cc0b9b612d20ab453807a8e5900f4e67b77ce8"
+      }
+    }
+  },
+  "analysis_contract": {
+    "neighbors": {
+      "use_rep": "scanvi",
+      "n_neighbors": 15,
+      "random_state": 0,
+      "connectivities_nnz": 12558296,
+      "connectivities_canonical_csr_sha256": "7bbf9549fdd893d0c4aba2b9491276cc685fc9b2361fc54d2bc8e397eb6bf8df"
+    },
+    "umap": {
+      "min_dist": 0.5,
+      "random_state": 0,
+      "embeddings": {
+        "1d": {
+          "shape": [
+            561947,
+            1
+          ],
+          "minimum": -26.920488357543945,
+          "maximum": 39.56440734863281,
+          "mean": 5.136686325073242,
+          "standard_deviation": 16.3392276763916,
+          "f32_sha256": "c796bf5328e3f3c64e4e380f65360eef2d41ea0a9c2af5610a5064f6a5abf585"
+        },
+        "2d": {
+          "shape": [
+            561947,
+            2
+          ],
+          "minimum": -11.610074043273926,
+          "maximum": 17.379934310913086,
+          "mean": 3.433204174041748,
+          "standard_deviation": 7.3852949142456055,
+          "f32_sha256": "43118ee5280533d0ab4c450a83fd0a80870dddf6f0d90bf6fb55538b0de7c91d"
+        },
+        "3d": {
+          "shape": [
+            561947,
+            3
+          ],
+          "minimum": -8.215041160583496,
+          "maximum": 17.337800979614258,
+          "mean": 5.140766143798828,
+          "standard_deviation": 5.396771430969238,
+          "f32_sha256": "02e51436edadbc13932df5ac8fa878380dee63e1e175376100c97edbc0ecd96d"
+        }
+      }
+    }
+  },
+  "gene_naming": {
+    "identifiers": {
+      "file": "varnames/dataset_complete_Suo_varnames.pickle",
+      "size_bytes": 167841,
+      "sha256": "77788563406e4df73f51bbbe2a7677f85651cfd646bdbd144f5b0cddf04861cb"
+    },
+    "symbol_table": {
+      "file": "ensembl_to_hgnc.pickle",
+      "size_bytes": 380228,
+      "sha256": "949bf593f1dee0de1d50fa42bcd03c3dcde104a8a6bdd76c31d11745e3a95ef1"
+    },
+    "default_name_column": "gene_name",
+    "accession_name_column": "ensembl_gene_id",
+    "upstream_ids_json_sha256": "207cff8ce2d0796c22826153dfcbcbaf1898aa7e51e4ec9ff47faa3439ea5f17",
+    "census": {
+      "upstream_identifiers": 8192,
+      "passed_through": 8,
+      "translated": 5095,
+      "still_accession": 1022,
+      "absent_from_symbol_table": 2067,
+      "published": 5103
+    },
+    "published_names_json_sha256": "eebabfe5626ab05164ccd5caf0d92d1c1ced4c56284bae6a49616e5ab0a1bf80"
+  },
+  "warning_contract": [],
+  "export_contract": {
+    "embeddings": {
+      "X_umap_1d": {
+        "origin": "umap",
+        "dimension": 1,
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_umap_2d": {
+        "origin": "umap",
+        "dimension": 2,
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_umap_3d": {
+        "origin": "umap",
+        "dimension": 3,
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_pca": {
+        "origin": "source",
+        "dimension": 2,
+        "label": "PCA (unintegrated)",
+        "source_key": "X_pca",
+        "columns": [
+          0,
+          1
+        ]
+      }
+    },
+    "embedding_defaults": {
+      "2d": "X_umap_2d"
+    },
+    "centroid_outlier_quantile": 0.9,
+    "centroid_min_points": 10,
+    "identity": {
+      "cellucid_data_version": "0.9.3",
+      "id": "suo",
+      "name": "Developing human immune system (Suo)",
+      "description": "Mapping the developing human immune system across organs",
+      "created_at": "2026-10-18T00:00:00Z",
+      "stats": {
+        "n_cells": 561947,
+        "n_genes": 5103,
+        "n_obs_fields": 16,
+        "n_categorical_fields": 14,
+        "n_continuous_fields": 2,
+        "has_connectivity": true,
+        "n_edges": 6279148
+      },
+      "embeddings": {
+        "default_dimension": 3,
+        "defaults": {
+          "1d": "X_umap_1d",
+          "2d": "X_umap_2d",
+          "3d": "X_umap_3d"
+        },
+        "items": {
+          "X_umap_1d": {
+            "label": "UMAP",
+            "dimension": 1,
+            "file": "embeddings/0_1d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0
+              ]
+            }
+          },
+          "X_pca": {
+            "label": "PCA (unintegrated)",
+            "dimension": 2,
+            "file": "embeddings/1_2d.bin.gz",
+            "source": {
+              "key": "X_pca",
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap_2d": {
+            "label": "UMAP",
+            "dimension": 2,
+            "file": "embeddings/2_2d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap_3d": {
+            "label": "UMAP",
+            "dimension": 3,
+            "file": "embeddings/3_3d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0,
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "vector_fields": null,
+      "source": {
+        "name": "E-MTAB-11343",
+        "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11343",
+        "citation": "Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11343."
+      },
+      "export_settings": {
+        "compression": 6,
+        "var_quantization": 8,
+        "obs_continuous_quantization": 8,
+        "obs_categorical_dtype": "uint8"
+      },
+      "obs_fields": [
+        {
+          "key": "age",
+          "kind": "continuous"
+        },
+        {
+          "key": "n_genes",
+          "kind": "continuous"
+        },
+        {
+          "key": "sample_ID",
+          "kind": "category",
+          "n_categories": 25
+        },
+        {
+          "key": "organ",
+          "kind": "category",
+          "n_categories": 9
+        },
+        {
+          "key": "cell_type",
+          "kind": "category",
+          "n_categories": 69
+        },
+        {
+          "key": "sex",
+          "kind": "category",
+          "n_categories": 2
+        },
+        {
+          "key": "sex_inferred",
+          "kind": "category",
+          "n_categories": 2
+        },
+        {
+          "key": "concatenated_integration_covariates",
+          "kind": "category",
+          "n_categories": 33
+        },
+        {
+          "key": "integration_donor",
+          "kind": "category",
+          "n_categories": 25
+        },
+        {
+          "key": "integration_biological_unit",
+          "kind": "category",
+          "n_categories": 1
+        },
+        {
+          "key": "integration_sample_status",
+          "kind": "category",
+          "n_categories": 1
+        },
+        {
+          "key": "integration_library_platform_coarse",
+          "kind": "category",
+          "n_categories": 2
+        },
+        {
+          "key": "LVL3",
+          "kind": "category",
+          "n_categories": 69
+        },
+        {
+          "key": "LVL2",
+          "kind": "category",
+          "n_categories": 16
+        },
+        {
+          "key": "LVL1",
+          "kind": "category",
+          "n_categories": 4
+        },
+        {
+          "key": "LVL0",
+          "kind": "category",
+          "n_categories": 1
+        }
+      ]
+    },
+    "gene_names_json_sha256": "eebabfe5626ab05164ccd5caf0d92d1c1ced4c56284bae6a49616e5ab0a1bf80",
+    "gene_name_sets": [
+      {
+        "source": "gene_name",
+        "filled_from_index": 0,
+        "renamed": []
+      },
+      {
+        "source": "ensembl_gene_id",
+        "filled_from_index": 0,
+        "renamed": []
+      }
+    ],
+    "alternative_gene_name_digests": [
+      "dae66086f6887046da167a93358fca7b8e3954535fadbaea4ad85c78e48a4e21"
+    ],
+    "semantic_payloads": {
+      "embeddings/0_1d.bin.gz": {
+        "raw_bytes": 2247788,
+        "raw_sha256": "269f3d993f7a414a1fd6b68e19baf934013605596891b90caf31fe8aff7e5cfc"
+      },
+      "embeddings/1_2d.bin.gz": {
+        "raw_bytes": 4495576,
+        "raw_sha256": "50f38a0a7936404d035570ff73a8d8892aee16bb15b819f3106ad5c1a28b9c20"
+      },
+      "embeddings/2_2d.bin.gz": {
+        "raw_bytes": 4495576,
+        "raw_sha256": "f5b8210094bb35ea796c660964dced193eb6c2ece687a0aeb591ebfc244ca887"
+      },
+      "embeddings/3_3d.bin.gz": {
+        "raw_bytes": 6743364,
+        "raw_sha256": "37789c502f26ba48c3a9a66b23c617a9377f4a74c26c6351b9c66b083dff2342"
+      }
+    },
+    "expected_file_count": 5144,
+    "expected_total_bytes": 126557388,
+    "generation_sha256": "8a708b5f8f4a586bd7daed5be1ea4fea5c6175bbff5db4cb4a86b8fc947f2b8b"
+  }
+}

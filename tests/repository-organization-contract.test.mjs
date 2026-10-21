@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
@@ -10,11 +11,12 @@ const TESTS_ROOT = new URL('tests/', REPOSITORY_ROOT);
 const SCRIPTS_ROOT = new URL('scripts/', REPOSITORY_ROOT);
 const NOTEBOOKS_ROOT = new URL('notebooks/', REPOSITORY_ROOT);
 const SOURCES_ROOT = new URL('sources/', REPOSITORY_ROOT);
-const EXPORTS_ROOT = new URL('exports/', REPOSITORY_ROOT);
+const EXPORTS_ROOT = new URL('exports-v3/', REPOSITORY_ROOT);
 const GIT_ATTRIBUTES_URL = new URL('.gitattributes', REPOSITORY_ROOT);
 const GITIGNORE_URL = new URL('.gitignore', REPOSITORY_ROOT);
 const README_URL = new URL('README.md', REPOSITORY_ROOT);
-const CATALOG_URL = new URL('exports/datasets.json', REPOSITORY_ROOT);
+const CITATION_URL = new URL('CITATION.cff', REPOSITORY_ROOT);
+const CATALOG_URL = new URL('exports-v3/datasets.json', REPOSITORY_ROOT);
 /** This file, so the suite sweep below cannot pass on an empty directory. */
 const THIS_SUITE = path.basename(fileURLToPath(import.meta.url));
 const THIS_SUITE_PATH = `tests/${THIS_SUITE}`;
@@ -27,8 +29,8 @@ const THIS_SUITE_PATH = `tests/${THIS_SUITE}`;
  * `catalog-contract.test.mjs` would keep a green check while every payload
  * assertion in it went unrun. Restricting the sweep to `*.test.mjs` left the
  * identical hole one language over, and
- * `tests/test_build_pancreas_publish.py` fell straight through it -- seven
- * assertions on the staged Pancreas publisher that no workflow ever executed.
+ * the Python suite on the staged publisher fell straight through it -- seven
+ * assertions that no workflow ever executed.
  * The runners are enumerated here instead, every file in `tests/` is assigned
  * to one of them, and a file that matches none is rejected outright rather
  * than silently uncovered.
@@ -57,7 +59,7 @@ const SUITE_RUNNERS = Object.freeze([
  */
 const UNGOVERNED_ROOT_FILES = Object.freeze(['.DS_Store']);
 /**
- * The directories whose every non-hidden file is a text artifact. `exports/`
+ * The directories whose every non-hidden file is a text artifact. `exports-v3/`
  * is not among them: it holds 37,000 gzip payloads and the
  * `*.cellucid-session` binaries that `.gitattributes` marks `-text`, so it is
  * swept by targeted extension in readCatalogDocuments() instead of by reading
@@ -71,7 +73,7 @@ const TEXT_SURFACE_DIRECTORIES = Object.freeze([
   Object.freeze({ region: 'sources', prefix: 'sources/', root: SOURCES_ROOT }),
 ]);
 const TEXT_SURFACE_REGIONS = Object.freeze([
-  'exports',
+  'exports-v3',
   'notebooks',
   'root',
   'scripts',
@@ -80,8 +82,8 @@ const TEXT_SURFACE_REGIONS = Object.freeze([
   'workflows',
 ]);
 /**
- * Measured against the 54 text artifacts on disk today: 12 root files, 1
- * workflow, 4 suites, 1 build script, 8 notebooks, 2 provenance records and 26
+ * Measured against the 61 text artifacts on disk today: 12 root files, 1
+ * workflow, 4 suites, 4 scripts, 8 notebooks, 6 provenance records and 26
  * published catalog documents. The floor exists so an enumeration that lands
  * on the wrong tree, or that quietly loses a region, fails instead of sweeping
  * a handful of files while reading as though it swept the repository.
@@ -89,7 +91,7 @@ const TEXT_SURFACE_REGIONS = Object.freeze([
 const MINIMUM_TEXT_SURFACE_FILES = 40;
 /**
  * The same surface minus the three artifacts excepted from the retired-path
- * rule below. Measured at 51 today.
+ * rule below. Measured at 58 today.
  */
 const MINIMUM_GOVERNED_ARTIFACTS = 30;
 /**
@@ -103,18 +105,18 @@ const VOCABULARY_BLOCK_BEGIN = /^\/\* retired-path-vocabulary:begin \*\/$/;
 const VOCABULARY_BLOCK_END = /^\/\* retired-path-vocabulary:end \*\/$/;
 /**
  * The markers around the one definition of "published" the suites share.
- * `catalog-contract.test.mjs` swept `exports/` for prepared generations while
+ * `catalog-contract.test.mjs` swept `exports-v3/` for prepared generations while
  * `session-presets-contract.test.mjs` swept it for state artifacts, and the
  * two disagreed about which directories counted: the first skipped the local
  * scratch exports `.gitignore` excludes, the second descended into them, and
  * this file kept a third copy of the same idea. Whichever of them was widened
  * first would have won without anything saying so, so the definition now lives
- * in one block, byte-identical wherever `exports/` is enumerated, and the
+ * in one block, byte-identical wherever `exports-v3/` is enumerated, and the
  * sweep below refuses a fourth.
  */
 const PUBLISHED_GENERATIONS_BEGIN = /^\/\* published-generations:begin \*\/$/;
 const PUBLISHED_GENERATIONS_END = /^\/\* published-generations:end \*\/$/;
-/** How a suite names the root of `exports/` when it enumerates it. */
+/** How a suite names the root of `exports-v3/` when it enumerates it. */
 const EXPORTS_ROOT_REFERENCE = /\bEXPORTS_(?:ROOT|URL)\b/;
 /**
  * The name convention this repository selected published generations by before
@@ -122,18 +124,21 @@ const EXPORTS_ROOT_REFERENCE = /\bEXPORTS_(?:ROOT|URL)\b/;
  * block is writing a second definition of "published".
  */
 const PRIVATE_GENERATION_FILTER = /startsWith\(\s*(['"])_\1/;
-/** The suites that enumerate `exports/`, so an empty sweep cannot pass. */
+/** The suites that enumerate `exports-v3/`, so an empty sweep cannot pass. */
 const MINIMUM_EXPORTS_ENUMERATING_SUITES = 3;
 
 /**
  * The README byte cap kept the file from becoming an implementation diary but
  * allowed it to become nothing at all: an empty README satisfies a cap. The
- * floor is measured against the current 3,856-byte file.
+ * floor is measured against the current 4,497 hand-written bytes. Both bounds
+ * govern the hand-written text: the generated citation region is excluded,
+ * because its size is set by the shared citation, not by this README, and it
+ * is held to that citation byte for byte by the citation test below.
  */
 const MINIMUM_README_BYTES = 1_200;
 const MAXIMUM_README_BYTES = 4_500;
 const REQUIRED_README_LINKS = Object.freeze([
-  'https://cellucid.readthedocs.io/en/latest/',
+  'https://docs.cellucid.com/en/latest/',
   'https://github.com/theislab/cellucid',
   'https://github.com/theislab/cellucid-python',
   'https://github.com/theislab/cellucid-r',
@@ -166,7 +171,7 @@ const RETIRED_PATH_LANGUAGE =
  */
 const RETIRED_PATH_LANGUAGE_EXCEPTIONS = Object.freeze([
   Object.freeze({
-    covers: 'requirements-pancreas.lock',
+    covers: 'requirements-build.lock',
     reason:
       'pins two PyPI distributions whose published names are Deprecated and '
       + 'legacy-api-wrap',
@@ -192,20 +197,20 @@ const RETIRED_PATH_LANGUAGE_EXCEPTIONS = Object.freeze([
 /* published-generations:begin */
 /**
  * The one definition of "published" these suites have, held byte-identical in
- * every file that enumerates `exports/`. Two files that each decided for
- * themselves which directories under `exports/` counted governed different
+ * every file that enumerates `exports-v3/`. Two files that each decided for
+ * themselves which directories under `exports-v3/` counted governed different
  * sets of artifacts while reading as though they governed the same set, and
  * whichever definition was widened first would have won in silence.
  *
  * The rule itself is not restated here. It is read out of `.gitignore`, which
- * is what actually decides whether a directory under `exports/` is committed:
- * every `/exports/<glob>/` line names a tree the repository keeps out, and a
+ * is what actually decides whether a directory under `exports-v3/` is committed:
+ * every `/exports-v3/<glob>/` line names a tree the repository keeps out, and a
  * hidden entry is never a prepared generation.
  * `repository-organization-contract.test.mjs` fails if a copy of this block
- * diverges from the others, if a suite that enumerates `exports/` carries no
+ * diverges from the others, if a suite that enumerates `exports-v3/` carries no
  * copy, or if any suite selects generations by a name convention of its own.
  */
-const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports/';
+const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports-v3/';
 
 function publishedGenerationNames(entries, gitignoreText) {
   const excluded = gitignoreText
@@ -219,7 +224,7 @@ function publishedGenerationNames(entries, gitignoreText) {
     .map((line) => line.slice(PUBLISHED_GENERATION_IGNORE_SCOPE.length, -1));
   assert.ok(
     excluded.length > 0,
-    '.gitignore names no uncommitted directory under exports/, so the rule '
+    '.gitignore names no uncommitted directory under exports-v3/, so the rule '
       + 'these suites select published generations by is no longer there to read'
   );
   const patterns = excluded.map(
@@ -299,7 +304,7 @@ async function readDirectoryArtifacts({ region, prefix, root }, pattern = null) 
 /** The published catalog and every generation sidecar beside it, by extension. */
 async function readCatalogDocuments() {
   const documents = [
-    { region: 'exports', relative: 'exports/datasets.json', url: CATALOG_URL },
+    { region: 'exports-v3', relative: 'exports-v3/datasets.json', url: CATALOG_URL },
   ];
   const generations = publishedGenerationNames(
     await readdir(EXPORTS_ROOT, { withFileTypes: true }),
@@ -309,8 +314,8 @@ async function readCatalogDocuments() {
     documents.push(
       ...(await readDirectoryArtifacts(
         {
-          region: 'exports',
-          prefix: `exports/${generation}/`,
+          region: 'exports-v3',
+          prefix: `exports-v3/${generation}/`,
           root: new URL(`${generation}/`, EXPORTS_ROOT),
         },
         /\.json$/
@@ -384,10 +389,14 @@ test('the text-surface enumeration reaches every region of the repository', asyn
     '.gitattributes',
     'README.md',
     THIS_SUITE_PATH,
-    'tests/test_build_pancreas_publish.py',
+    'tests/test_pinned_build_publish.py',
+    'scripts/pinned_build.py',
+    'scripts/build_atlas.py',
     'scripts/build_pancreas.py',
+    'sources/build-environment.json',
     'sources/pancreas.json',
-    'exports/datasets.json',
+    'sources/suo.json',
+    'exports-v3/datasets.json',
   ]) {
     assert.ok(
       surface.some((artifact) => artifact.relative === anchor),
@@ -542,10 +551,13 @@ test('every retired-path-language exception still has the reason it was granted'
 
 test('README stays a concise demo-catalog guide instead of an implementation diary', async () => {
   const readme = await readFile(README_URL, 'utf8');
-  assert.ok(Buffer.byteLength(readme, 'utf8') <= MAXIMUM_README_BYTES);
+  const region = citationRegion(readme);
+  const handWrittenBytes = Buffer.byteLength(readme, 'utf8')
+    - Buffer.byteLength(region.text, 'utf8');
+  assert.ok(handWrittenBytes <= MAXIMUM_README_BYTES);
   assert.ok(
-    Buffer.byteLength(readme, 'utf8') >= MINIMUM_README_BYTES,
-    `README is ${Buffer.byteLength(readme, 'utf8')} bytes, below the `
+    handWrittenBytes >= MINIMUM_README_BYTES,
+    `README is ${handWrittenBytes} hand-written bytes, below the `
       + `${MINIMUM_README_BYTES}-byte floor; the cap alone accepted an empty file`
   );
   assert.match(readme, /public demo-dataset extension of/);
@@ -556,7 +568,10 @@ test('README stays a concise demo-catalog guide instead of an implementation dia
     readme,
     /^## (?:Rebuilding|Web application configuration|GitHub Pages)/m
   );
-  assert.doesNotMatch(readme, /requirements-pancreas|build_pancreas\.py/);
+  assert.doesNotMatch(
+    readme,
+    /requirements-build|build_(?:atlas|pancreas)\.py|pinned_build/
+  );
 });
 
 test('every promised README destination is a real markdown link', async () => {
@@ -617,7 +632,7 @@ test('README names every dataset the published catalog advertises', async () => 
 });
 
 /**
- * The invariant: every suite that enumerates `exports/` decides which of its
+ * The invariant: every suite that enumerates `exports-v3/` decides which of its
  * directories are published with the same rule, held as one byte-identical
  * block, and no suite may decide it any other way.
  */
@@ -692,25 +707,25 @@ test('every suite selects published generations by the one shared rule', async (
       blockCount === 1,
       enumeratesExports,
       enumeratesExports
-        ? `${relative} enumerates exports/ without the shared published-`
+        ? `${relative} enumerates exports-v3/ without the shared published-`
           + 'generation block, so it is deciding for itself which directories '
           + 'are published'
         : `${relative} carries the shared published-generation block without `
-          + 'enumerating exports/, so the copy is unused and free to rot away '
+          + 'enumerating exports-v3/, so the copy is unused and free to rot away '
           + 'from the ones that are'
     );
     assert.equal(
       callsSharedRule,
       enumeratesExports,
       `${relative} must call publishedGenerationNames exactly where it decides `
-        + 'which directories under exports/ are published'
+        + 'which directories under exports-v3/ are published'
     );
     if (blockCount === 1) blocksBySuite.set(relative, blockLines.join('\n'));
   }
 
   assert.ok(
     enumeratingSuites.length >= MINIMUM_EXPORTS_ENUMERATING_SUITES,
-    `only ${enumeratingSuites.length} suites were seen to enumerate exports/, `
+    `only ${enumeratingSuites.length} suites were seen to enumerate exports-v3/, `
       + `below the ${MINIMUM_EXPORTS_ENUMERATING_SUITES} that do, so this sweep `
       + 'is not seeing the files it governs'
   );
@@ -723,7 +738,7 @@ test('every suite selects published generations by the one shared rule', async (
     1,
     `the ${blocksBySuite.size} copies of the published-generation block are not `
       + 'byte-identical, so these suites no longer share one definition of '
-      + `which directories under exports/ are published:\n`
+      + `which directories under exports-v3/ are published:\n`
       + [...blocksBySuite.keys()].join('\n')
   );
   assert.deepEqual(
@@ -870,4 +885,67 @@ test('retired bridge and top-level session paths have no repository surface', as
     const source = await readFile(new URL(workflowName, WORKFLOWS_ROOT), 'utf8');
     assert.doesNotMatch(source, /\bbridge\b/i);
   }
+});
+
+/**
+ * The Cellucid citation is written once, in the preferred-citation block that
+ * every Cellucid repository's CITATION.cff shares, and generated everywhere
+ * else by cellucid-private/scripts/sync_citation.py. The README's citation
+ * region records the SHA-256 of the block it came from and of its own body, so
+ * a block changed without re-running the script, or a region edited by hand,
+ * fails here.
+ */
+const CITATION_BLOCK_BEGIN = '# BEGIN cellucid preferred-citation';
+const CITATION_BLOCK_END = '# END cellucid preferred-citation';
+const CITATION_REGION_BEGIN = /^<!-- BEGIN cellucid-citation \(generated by cellucid-private\/scripts\/sync_citation\.py from CITATION\.cff; do not edit\) source-sha256=([0-9a-f]{64}) body-sha256=([0-9a-f]{64}) -->\n/gm;
+const CITATION_REGION_END = '<!-- END cellucid-citation -->\n';
+
+const sha256 = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
+
+function preferredCitationBlock(text) {
+  const lines = text.split(/(?<=\n)/);
+  const indexOf = (marker) => lines.flatMap((line, index) => (
+    line.replace(/\n$/, '') === marker ? [index] : []
+  ));
+  const begins = indexOf(CITATION_BLOCK_BEGIN);
+  const ends = indexOf(CITATION_BLOCK_END);
+  assert.equal(begins.length, 1, `CITATION.cff must hold one "${CITATION_BLOCK_BEGIN}" line`);
+  assert.equal(ends.length, 1, `CITATION.cff must hold one "${CITATION_BLOCK_END}" line`);
+  assert.ok(ends[0] > begins[0]);
+  const block = lines.slice(begins[0], ends[0] + 1).join('');
+  return block.endsWith('\n') ? block : `${block}\n`;
+}
+
+function citationRegion(text) {
+  const begins = [...text.matchAll(CITATION_REGION_BEGIN)];
+  assert.equal(begins.length, 1, 'README.md must hold exactly one generated citation region');
+  assert.equal(text.split(CITATION_REGION_END).length, 2, 'README.md must hold exactly one region end');
+  const bodyStart = begins[0].index + begins[0][0].length;
+  const bodyEnd = text.indexOf(CITATION_REGION_END);
+  assert.ok(bodyEnd >= bodyStart, 'the citation region must end after it begins');
+  return {
+    source: begins[0][1],
+    recordedBody: begins[0][2],
+    body: text.slice(bodyStart, bodyEnd),
+    text: text.slice(begins[0].index, bodyEnd + CITATION_REGION_END.length),
+  };
+}
+
+test('the README citation is generated from this CITATION.cff and unedited', async () => {
+  const block = preferredCitationBlock(await readFile(CITATION_URL, 'utf8'));
+  const region = citationRegion(await readFile(README_URL, 'utf8'));
+  assert.equal(
+    region.source,
+    sha256(block),
+    'CITATION.cff changed after the README citation was generated; run '
+      + 'cellucid-private/scripts/sync_citation.py'
+  );
+  assert.equal(
+    region.recordedBody,
+    sha256(region.body),
+    'the README citation region was edited by hand; edit '
+      + 'theislab/cellucid/CITATION.cff and run cellucid-private/scripts/sync_citation.py'
+  );
+  const placeholder = !/^ {2}doi:/m.test(block);
+  assert.equal(region.body.includes('**Placeholder citation.**'), placeholder);
 });

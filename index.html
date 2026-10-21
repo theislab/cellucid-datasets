@@ -30,7 +30,7 @@
 
     <p style="margin: 0 0 8px">
       Manifest:
-      <a href="./exports/datasets.json"><code>exports/datasets.json</code></a>
+      <a href="./exports-v3/datasets.json"><code>exports-v3/datasets.json</code></a>
     </p>
     <h2 style="margin: 0 0 8px; font-size: 16px">Datasets</h2>
     <div id="datasets">Loading…</div>
@@ -39,7 +39,7 @@
       async function main() {
         const container = document.getElementById('datasets');
         try {
-          const resp = await fetch('./exports/datasets.json', { cache: 'no-store' });
+          const resp = await fetch('./exports-v3/datasets.json', { cache: 'no-store' });
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const manifest = await resp.json();
           if (
@@ -71,7 +71,7 @@
             }
             const li = document.createElement('li');
             const a = document.createElement('a');
-            a.href = `./exports/${dataset.path}`;
+            a.href = `./exports-v3/${dataset.path}`;
             a.textContent = dataset.id;
             li.appendChild(a);
             if (dataset.id === manifest.default) {

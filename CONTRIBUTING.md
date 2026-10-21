@@ -36,26 +36,45 @@ app.
 
 ## What is authored here, and what is generated
 
-Nothing under `exports/` is written by hand. Every generation is produced by a
-writer and replaced whole:
+Nothing under `exports-v3/` is written by hand. Every generation is produced by a
+pinned build and replaced whole:
 
-- `notebooks/<id>_1_prepare_anndata.ipynb` builds the AnnData input, and
-  `notebooks/<id>_2_export_cellucid.ipynb` calls `cellucid.prepare()` on it.
-  These two are the source of the four human atlases.
-- `scripts/build_pancreas.py` builds Pancreas end to end from the pinned source
-  recorded in `sources/pancreas.json`, against the pinned environment in
-  `requirements-pancreas.lock`.
+- `scripts/build_atlas.py --dataset <id>` builds Garcia, He, Kanemaru and Suo
+  from their integrated source files, which are not redistributable and are
+  never committed here. `--source-dir` names the directory that holds them.
+- `scripts/build_pancreas.py` builds Pancreas end to end, downloading its
+  commit-pinned public source.
 
-So a fix to a published generation is a fix to the notebook or the script that
-wrote it, plus the regenerated `exports/` tree — never an edit to a payload
-file or a manifest. A hand-edited export is invisible to review and vanishes at
-the next regeneration.
+Both run through `scripts/pinned_build.py`, which refuses to build unless the
+interpreter, the exact package set in `requirements-build.lock`, the BLAS
+runtime, and every Cellucid producer module the export path executes match
+`sources/build-environment.json`. Each dataset's `sources/<id>.json` pins its
+source file by size and SHA-256, every intermediate the build derives, and the
+identity, payload digests and whole-generation digest of what it writes; the
+staged generation is checked against all of them before it replaces
+`exports-v3/<id>/`. Install the environment with CPython 3.12.13:
 
-`exports/datasets.json` is likewise written by
-`cellucid.prepare_data.generate_datasets_manifest()`.
+```bash
+python -m pip install --requirement requirements-build.lock
+python -m pip install --no-deps -e ../cellucid-python
+python scripts/build_atlas.py --dataset he --source-dir ../.anndatas --force
+```
+
+The four `notebooks/<id>_1_prepare_anndata.ipynb` and
+`<id>_2_export_cellucid.ipynb` pairs are the annotated recipe the atlas builder
+transcribes. They write their own export outside every repository and never
+replace a published generation.
+
+So a fix to a published generation is a fix to the build that wrote it, plus
+its repinned `sources/<id>.json` and the regenerated `exports-v3/` tree — never an
+edit to a payload file or a manifest. A hand-edited export is invisible to
+review, fails the generation digest, and vanishes at the next rebuild.
+
+`exports-v3/datasets.json` lists each generation's id and directory and the digest
+of its published starting view, which the preset publisher below repins.
 
 The same rule covers each sample's published starting view. `scripts/publish_session_preset.mjs`
-writes `exports/<id>/default.cellucid-session` from a **Save State** file you
+writes `exports-v3/<id>/default.cellucid-session` from a **Save State** file you
 produce in the viewer:
 
 ```bash
@@ -84,7 +103,7 @@ coordinates it ships, so a capture taken against different data is refused
 instead of relabelled; and it reads its own output back through the reader
 before writing.
 
-It then repoints `exports/datasets.json` at the new digest itself. That file is
+It then repoints `exports-v3/datasets.json` at the new digest itself. That file is
 served straight off the default branch, so a preset replaced without it is live
 and broken the moment it is pushed — "does not match the advertised generation"
 — and the contract suite can only report that afterwards. The artifact and its
@@ -112,7 +131,7 @@ git config core.hooksPath .githooks
 The prepared datasets in this repository are redistributed from published
 third-party studies and stay under the terms of those studies. `LICENSE` sets
 out the split between them and this repository's own material, and each
-generation names its upstream in `exports/<id>/dataset_identity.json` under
+generation names its upstream in `exports-v3/<id>/dataset_identity.json` under
 `source`. Do not add a dataset here without recording that block.
 
 ---
@@ -125,7 +144,7 @@ Node.js 20 or newer is required. From the repository root:
 node --test tests/catalog-contract.test.mjs \
   tests/repository-organization-contract.test.mjs \
   tests/session-presets-contract.test.mjs
-python -m unittest tests/test_build_pancreas_publish.py
+python -m unittest tests/test_pinned_build_publish.py
 ```
 
 These are the same commands `.github/workflows/test.yml` runs, so a green local
@@ -133,7 +152,7 @@ run is the same check CI applies. `tests/repository-organization-contract.test.m
 also asserts that every suite in `tests/` is named by every workflow, so a new
 suite has to be added to the workflow command in the same change.
 
-The suites read the repository as it is on disk: they enumerate `exports/`,
+The suites read the repository as it is on disk: they enumerate `exports-v3/`,
 compare each catalog entry against the generation it advertises, and sweep every
 text artifact for CRLF bytes and for prose describing paths this repository no
 longer has. Adding a file at the root therefore puts it under those sweeps
@@ -145,7 +164,7 @@ immediately.
 
 - Keep PRs small and focused (one generation, or one contract).
 - Include what changed, why, and how to verify it in the viewer.
-- Regenerate rather than patch: attach the notebook or script diff alongside the
-  changed `exports/` tree.
+- Regenerate rather than patch: attach the build diff and the repinned
+  `sources/<id>.json` alongside the changed `exports-v3/` tree.
 - If a change alters what the catalog advertises, update `README.md` in the same
   change — a suite checks that the README names every catalogued sample.

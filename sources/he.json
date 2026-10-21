@@ -1,0 +1,592 @@
+{
+  "schema_version": 3,
+  "dataset_id": "he",
+  "builder": "scripts/build_atlas.py",
+  "source": {
+    "file": "he.h5ad",
+    "size_bytes": 298708152,
+    "sha256": "f0c51c6c41acc87d2585f5978d3a635551947880cf7dcaed5c6abff0c17d53c5",
+    "description": "he.h5ad, the he_developmental_complete.h5ad output of the scVI/scANVI integration pipeline: a derivative of ArrayExpress study E-MTAB-11278, not an archive download.",
+    "redistribution": "Not redistributable. The file is never copied into this repository; the builder reads it from --source-dir and refuses any other bytes.",
+    "upstream_accession": "E-MTAB-11278",
+    "upstream_url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11278"
+  },
+  "citation": {
+    "text": "A human fetal lung cell atlas uncovers proximal-distal gradients of differentiation and key regulators of epithelial fates. ArrayExpress study E-MTAB-11278."
+  },
+  "recipe": [
+    "notebooks/he_1_prepare_anndata.ipynb",
+    "notebooks/he_2_export_cellucid.ipynb"
+  ],
+  "ownership": {
+    "source_owned": [
+      "raw integer counts X and the ordered cell identifiers",
+      "every obs column and its category order",
+      "the scVI latent representation obsm['scvi']",
+      "the unintegrated PCA obsm['X_pca'], published as its first two components",
+      "the integration pipeline's own 2D UMAP obsm['X_umap']",
+      "the upstream gene identifiers in varnames/, aligned to the matrix columns by position"
+    ],
+    "derived": [
+      "the dropped scVI bookkeeping columns _scvi_batch and _scvi_labels",
+      "age as a continuous field, converted from its categorical numeric strings",
+      "one 15-nearest-neighbour graph on obsm['scvi'], which is also the published connectivity",
+      "the 1D, 2D and 3D UMAPs of that one graph",
+      "gene symbols resolved through ensembl_to_hgnc.pickle; genes without one are not published"
+    ]
+  },
+  "selection": null,
+  "input_contract": {
+    "n_cells": 71650,
+    "n_genes": 8192,
+    "X_nnz": 11185042,
+    "X_canonical_csr_sha256": "e8ccbec16d974c29603723dd815d236b1ee6813cd74435049ad96212d8cf69a4",
+    "obs_fields": [
+      "sample_ID",
+      "organ",
+      "age",
+      "cell_type",
+      "sex",
+      "sex_inferred",
+      "concatenated_integration_covariates",
+      "integration_donor",
+      "integration_biological_unit",
+      "integration_sample_status",
+      "integration_library_platform_coarse",
+      "n_genes",
+      "LVL3",
+      "LVL2",
+      "LVL1",
+      "LVL0",
+      "_scvi_batch",
+      "_scvi_labels"
+    ],
+    "obs_names_json_sha256": "d6e05f863938fa4ed4b4eb08adba5ad00c4774f61481e8d8dc7913663e11dbd7",
+    "obs_digests": {
+      "sample_ID": {
+        "categories_json_sha256": "3e109a851bf8ac9aaa3f4dc4f3f0d5af95e26cbafbb9c70d46c7ad7a5e8860b5",
+        "codes_i32_sha256": "2c58a592a6c5368313221b95ee1d55e63cc5678c0702b69a6480ec3f1b745847"
+      },
+      "organ": {
+        "categories_json_sha256": "0917b9521fe6f003b955c8ac267d8516ac1c79868742a43152725f17f35d59a6",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "age": {
+        "categories_json_sha256": "4f7e171185d6c469fccda6f975f2471e818e961eac9f30860fe926385f522740",
+        "codes_i32_sha256": "8d0ab18e92f677131dc31cc0057cc13eafbb2f377131838bc26e6d1e6938d2d8"
+      },
+      "cell_type": {
+        "categories_json_sha256": "fade29beec1821919d4377918482d526242ce0016dd79643b75b7fc6fecda9ce",
+        "codes_i32_sha256": "79116f4bb6fc3480cbe210847b80195e1cb7aa2c5ef6ad7c197080467e46471f"
+      },
+      "sex": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "f9ff38b1068c301003c8b01ecf310b060894bbdaac0b3fbb3210c2881966a039"
+      },
+      "sex_inferred": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "f9ff38b1068c301003c8b01ecf310b060894bbdaac0b3fbb3210c2881966a039"
+      },
+      "concatenated_integration_covariates": {
+        "categories_json_sha256": "e35a5f42ea094d74114af749187adbea5910ab4597ac6c8257fefc7017278ab7",
+        "codes_i32_sha256": "2c58a592a6c5368313221b95ee1d55e63cc5678c0702b69a6480ec3f1b745847"
+      },
+      "integration_donor": {
+        "categories_json_sha256": "762de8738bec7b34ce1e41bfee7935266603199a4629dc5064e1f42ac897685e",
+        "codes_i32_sha256": "2c58a592a6c5368313221b95ee1d55e63cc5678c0702b69a6480ec3f1b745847"
+      },
+      "integration_biological_unit": {
+        "categories_json_sha256": "cc920d9290929373c95571f045fb8a3fbdf62710350986303ce7b2cbeba38780",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "integration_sample_status": {
+        "categories_json_sha256": "384e1692d8e509df1e898dadd5a8ec847fcbc39edeef5ef4ba254c9bf2cf13fe",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "integration_library_platform_coarse": {
+        "categories_json_sha256": "eb6c3e2ffb3852437d23bf693a26c07ced740c4d75d879a30ea6e50b6bba8695",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "n_genes": {
+        "f64_sha256": "0304bc991d122a3e38f19fff025e69ce1baf6c9dcf92c30f17905be2a62a2232"
+      },
+      "LVL3": {
+        "categories_json_sha256": "33907b6a8723f6f494d837cd0d252704dd872c84c2802702929c317cd1b386e9",
+        "codes_i32_sha256": "c06dc0a0d5f261a8a28bc00031d9ad77fe41a53be030a06d34c22d23a07819ce"
+      },
+      "LVL2": {
+        "categories_json_sha256": "4283936b750a5d63d5f4fd20ca8f0d0f87850941481ebc8a0f0169354299eac8",
+        "codes_i32_sha256": "fc090c11d5c31020eecf77d573497ebda0b838f055506c932a906ea6c9ad5988"
+      },
+      "LVL1": {
+        "categories_json_sha256": "990f0d0d6c06b292dfd2fc5cc27852ff3ede189b2a7ac1f5e557df7522079b29",
+        "codes_i32_sha256": "97c7b12b3a7968d8a14b501d93610ecd83cfe254d2a0af17c42a24b67ce2917a"
+      },
+      "LVL0": {
+        "categories_json_sha256": "af09f63606b5a8b87beece1566ee931a081e9a653cf597ecc4ed73a598e6603e",
+        "codes_i32_sha256": "bd1a1811a2e745ca245e763df66b8e8e1ce6e802794bd07bee9b595854fddcb6"
+      },
+      "_scvi_batch": {
+        "f64_sha256": "c9fdcca65f5a0467affc20943c3f7bebe8d6e3b6e0d8982ad451fffbd5f4fd97"
+      },
+      "_scvi_labels": {
+        "f64_sha256": "dcfe08f628111040fbc92ac19565f0385b110ce3ed744abe251e210cadad75ba"
+      }
+    },
+    "obsm": {
+      "scvi": {
+        "shape": [
+          71650,
+          24
+        ],
+        "f32_sha256": "2b81b277eb542266f97bd17d45811ee34cc35a4ecdd9b25e491c95e0104b7969"
+      },
+      "X_pca": {
+        "shape": [
+          71650,
+          50
+        ],
+        "f32_sha256": "c9f5fef1ae44edfc1faeed595dc2dec1ad45ebcf9e53da30d05679247ca3fd01"
+      },
+      "X_umap": {
+        "shape": [
+          71650,
+          2
+        ],
+        "f32_sha256": "f43320e8b5a02dfc801588caa0843cc9a7e5191f8175c23013c4819ab680a469"
+      }
+    }
+  },
+  "obs_contract": {
+    "dropped_fields": [
+      "_scvi_batch",
+      "_scvi_labels"
+    ],
+    "pruned_categories": {},
+    "continuous_from_categorical": [
+      "age"
+    ],
+    "trimmed_labels": {},
+    "published_fields": [
+      "sample_ID",
+      "organ",
+      "age",
+      "cell_type",
+      "sex",
+      "sex_inferred",
+      "concatenated_integration_covariates",
+      "integration_donor",
+      "integration_biological_unit",
+      "integration_sample_status",
+      "integration_library_platform_coarse",
+      "n_genes",
+      "LVL3",
+      "LVL2",
+      "LVL1",
+      "LVL0"
+    ],
+    "published_digests": {
+      "sample_ID": {
+        "categories_json_sha256": "3e109a851bf8ac9aaa3f4dc4f3f0d5af95e26cbafbb9c70d46c7ad7a5e8860b5",
+        "codes_i32_sha256": "2c58a592a6c5368313221b95ee1d55e63cc5678c0702b69a6480ec3f1b745847"
+      },
+      "organ": {
+        "categories_json_sha256": "0917b9521fe6f003b955c8ac267d8516ac1c79868742a43152725f17f35d59a6",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "age": {
+        "f64_sha256": "b642e4d70c83ac97e37fd11271807267de063f2469396e4c8c35b4e28741a31f"
+      },
+      "cell_type": {
+        "categories_json_sha256": "fade29beec1821919d4377918482d526242ce0016dd79643b75b7fc6fecda9ce",
+        "codes_i32_sha256": "79116f4bb6fc3480cbe210847b80195e1cb7aa2c5ef6ad7c197080467e46471f"
+      },
+      "sex": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "f9ff38b1068c301003c8b01ecf310b060894bbdaac0b3fbb3210c2881966a039"
+      },
+      "sex_inferred": {
+        "categories_json_sha256": "1c949923add214357181950d731dbcb6c077e5ae3b1568a84a6bf6f5371e6d90",
+        "codes_i32_sha256": "f9ff38b1068c301003c8b01ecf310b060894bbdaac0b3fbb3210c2881966a039"
+      },
+      "concatenated_integration_covariates": {
+        "categories_json_sha256": "e35a5f42ea094d74114af749187adbea5910ab4597ac6c8257fefc7017278ab7",
+        "codes_i32_sha256": "2c58a592a6c5368313221b95ee1d55e63cc5678c0702b69a6480ec3f1b745847"
+      },
+      "integration_donor": {
+        "categories_json_sha256": "762de8738bec7b34ce1e41bfee7935266603199a4629dc5064e1f42ac897685e",
+        "codes_i32_sha256": "2c58a592a6c5368313221b95ee1d55e63cc5678c0702b69a6480ec3f1b745847"
+      },
+      "integration_biological_unit": {
+        "categories_json_sha256": "cc920d9290929373c95571f045fb8a3fbdf62710350986303ce7b2cbeba38780",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "integration_sample_status": {
+        "categories_json_sha256": "384e1692d8e509df1e898dadd5a8ec847fcbc39edeef5ef4ba254c9bf2cf13fe",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "integration_library_platform_coarse": {
+        "categories_json_sha256": "eb6c3e2ffb3852437d23bf693a26c07ced740c4d75d879a30ea6e50b6bba8695",
+        "codes_i32_sha256": "42ffcc588b4ae5b598ad1632c09a14580218af51448cd7ec3294be8a6049184a"
+      },
+      "n_genes": {
+        "f64_sha256": "0304bc991d122a3e38f19fff025e69ce1baf6c9dcf92c30f17905be2a62a2232"
+      },
+      "LVL3": {
+        "categories_json_sha256": "33907b6a8723f6f494d837cd0d252704dd872c84c2802702929c317cd1b386e9",
+        "codes_i32_sha256": "c06dc0a0d5f261a8a28bc00031d9ad77fe41a53be030a06d34c22d23a07819ce"
+      },
+      "LVL2": {
+        "categories_json_sha256": "4283936b750a5d63d5f4fd20ca8f0d0f87850941481ebc8a0f0169354299eac8",
+        "codes_i32_sha256": "fc090c11d5c31020eecf77d573497ebda0b838f055506c932a906ea6c9ad5988"
+      },
+      "LVL1": {
+        "categories_json_sha256": "990f0d0d6c06b292dfd2fc5cc27852ff3ede189b2a7ac1f5e557df7522079b29",
+        "codes_i32_sha256": "97c7b12b3a7968d8a14b501d93610ecd83cfe254d2a0af17c42a24b67ce2917a"
+      },
+      "LVL0": {
+        "categories_json_sha256": "af09f63606b5a8b87beece1566ee931a081e9a653cf597ecc4ed73a598e6603e",
+        "codes_i32_sha256": "bd1a1811a2e745ca245e763df66b8e8e1ce6e802794bd07bee9b595854fddcb6"
+      }
+    }
+  },
+  "analysis_contract": {
+    "neighbors": {
+      "use_rep": "scvi",
+      "n_neighbors": 15,
+      "random_state": 0,
+      "connectivities_nnz": 1525968,
+      "connectivities_canonical_csr_sha256": "b9f48df826b2c712dd8dc67934364a11491fe0735a8087a6f7c1d7791df403e1"
+    },
+    "umap": {
+      "min_dist": 0.5,
+      "random_state": 0,
+      "embeddings": {
+        "1d": {
+          "shape": [
+            71650,
+            1
+          ],
+          "minimum": -25.49022102355957,
+          "maximum": 28.28004264831543,
+          "mean": 0.6050233244895935,
+          "standard_deviation": 11.535321235656738,
+          "f32_sha256": "9264480b8ba246910a17dee7483950fb03007bb16a02f4474782c3cf84c96241"
+        },
+        "2d": {
+          "shape": [
+            71650,
+            2
+          ],
+          "minimum": -9.504639625549316,
+          "maximum": 13.789974212646484,
+          "mean": 1.9599672555923462,
+          "standard_deviation": 4.371458530426025,
+          "f32_sha256": "5e497d59879d97a7359693e88499a8012cf8534a4003ab2dd5bab44cbd07735a"
+        },
+        "3d": {
+          "shape": [
+            71650,
+            3
+          ],
+          "minimum": -6.525287628173828,
+          "maximum": 10.395692825317383,
+          "mean": 1.2000106573104858,
+          "standard_deviation": 3.224867582321167,
+          "f32_sha256": "b29c58b3b43ab0bded02601e71c006efd37b73a2142791c3dc89568aa347b8f2"
+        }
+      }
+    }
+  },
+  "gene_naming": {
+    "identifiers": {
+      "file": "varnames/dataset_complete_He_varnames.pickle",
+      "size_bytes": 167916,
+      "sha256": "423735a35722d5b3e4d7a95b2d4a8643514136a31e4996047e20ba798d372bba"
+    },
+    "symbol_table": {
+      "file": "ensembl_to_hgnc.pickle",
+      "size_bytes": 380228,
+      "sha256": "949bf593f1dee0de1d50fa42bcd03c3dcde104a8a6bdd76c31d11745e3a95ef1"
+    },
+    "default_name_column": "gene_name",
+    "accession_name_column": "ensembl_gene_id",
+    "upstream_ids_json_sha256": "48f2835f44f6eb608993a23ff7f7160e047c07f8aca7fa444587fdcd762ec03c",
+    "census": {
+      "upstream_identifiers": 8192,
+      "passed_through": 6,
+      "translated": 5146,
+      "still_accession": 949,
+      "absent_from_symbol_table": 2091,
+      "published": 5152
+    },
+    "published_names_json_sha256": "55ff1c5cd05dee3551de155e767bc1d75a4785ea012ff89f270ad7bba001e8c1"
+  },
+  "warning_contract": [],
+  "export_contract": {
+    "embeddings": {
+      "X_umap_1d": {
+        "origin": "umap",
+        "dimension": 1,
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_umap_2d": {
+        "origin": "umap",
+        "dimension": 2,
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_umap_3d": {
+        "origin": "umap",
+        "dimension": 3,
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_umap": {
+        "origin": "source",
+        "dimension": 2,
+        "label": "UMAP (source file)",
+        "source_key": "X_umap",
+        "columns": null
+      },
+      "X_pca": {
+        "origin": "source",
+        "dimension": 2,
+        "label": "PCA (unintegrated)",
+        "source_key": "X_pca",
+        "columns": [
+          0,
+          1
+        ]
+      }
+    },
+    "embedding_defaults": {
+      "2d": "X_umap_2d"
+    },
+    "centroid_outlier_quantile": 0.9,
+    "centroid_min_points": 10,
+    "identity": {
+      "cellucid_data_version": "0.9.3",
+      "id": "he",
+      "name": "Developing human lung (He)",
+      "description": "A human fetal lung cell atlas uncovers proximal-distal gradients of differentiation and key regulators of epithelial fates",
+      "created_at": "2026-10-18T00:00:00Z",
+      "stats": {
+        "n_cells": 71650,
+        "n_genes": 5152,
+        "n_obs_fields": 16,
+        "n_categorical_fields": 14,
+        "n_continuous_fields": 2,
+        "has_connectivity": true,
+        "n_edges": 762984
+      },
+      "embeddings": {
+        "default_dimension": 3,
+        "defaults": {
+          "1d": "X_umap_1d",
+          "2d": "X_umap_2d",
+          "3d": "X_umap_3d"
+        },
+        "items": {
+          "X_umap_1d": {
+            "label": "UMAP",
+            "dimension": 1,
+            "file": "embeddings/0_1d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0
+              ]
+            }
+          },
+          "X_pca": {
+            "label": "PCA (unintegrated)",
+            "dimension": 2,
+            "file": "embeddings/1_2d.bin.gz",
+            "source": {
+              "key": "X_pca",
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap": {
+            "label": "UMAP (source file)",
+            "dimension": 2,
+            "file": "embeddings/2_2d.bin.gz",
+            "source": {
+              "key": "X_umap",
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap_2d": {
+            "label": "UMAP",
+            "dimension": 2,
+            "file": "embeddings/3_2d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap_3d": {
+            "label": "UMAP",
+            "dimension": 3,
+            "file": "embeddings/4_3d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0,
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "vector_fields": null,
+      "source": {
+        "name": "E-MTAB-11278",
+        "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11278",
+        "citation": "A human fetal lung cell atlas uncovers proximal-distal gradients of differentiation and key regulators of epithelial fates. ArrayExpress study E-MTAB-11278."
+      },
+      "export_settings": {
+        "compression": 6,
+        "var_quantization": 8,
+        "obs_continuous_quantization": 8,
+        "obs_categorical_dtype": "uint8"
+      },
+      "obs_fields": [
+        {
+          "key": "age",
+          "kind": "continuous"
+        },
+        {
+          "key": "n_genes",
+          "kind": "continuous"
+        },
+        {
+          "key": "sample_ID",
+          "kind": "category",
+          "n_categories": 12
+        },
+        {
+          "key": "organ",
+          "kind": "category",
+          "n_categories": 1
+        },
+        {
+          "key": "cell_type",
+          "kind": "category",
+          "n_categories": 128
+        },
+        {
+          "key": "sex",
+          "kind": "category",
+          "n_categories": 2
+        },
+        {
+          "key": "sex_inferred",
+          "kind": "category",
+          "n_categories": 2
+        },
+        {
+          "key": "concatenated_integration_covariates",
+          "kind": "category",
+          "n_categories": 12
+        },
+        {
+          "key": "integration_donor",
+          "kind": "category",
+          "n_categories": 12
+        },
+        {
+          "key": "integration_biological_unit",
+          "kind": "category",
+          "n_categories": 1
+        },
+        {
+          "key": "integration_sample_status",
+          "kind": "category",
+          "n_categories": 1
+        },
+        {
+          "key": "integration_library_platform_coarse",
+          "kind": "category",
+          "n_categories": 1
+        },
+        {
+          "key": "LVL3",
+          "kind": "category",
+          "n_categories": 128
+        },
+        {
+          "key": "LVL2",
+          "kind": "category",
+          "n_categories": 42
+        },
+        {
+          "key": "LVL1",
+          "kind": "category",
+          "n_categories": 15
+        },
+        {
+          "key": "LVL0",
+          "kind": "category",
+          "n_categories": 5
+        }
+      ]
+    },
+    "gene_names_json_sha256": "55ff1c5cd05dee3551de155e767bc1d75a4785ea012ff89f270ad7bba001e8c1",
+    "gene_name_sets": [
+      {
+        "source": "gene_name",
+        "filled_from_index": 0,
+        "renamed": []
+      },
+      {
+        "source": "ensembl_gene_id",
+        "filled_from_index": 0,
+        "renamed": []
+      }
+    ],
+    "alternative_gene_name_digests": [
+      "ba86540b243b4d5e05fe0872cd7096249d4e85f7f55073baf92c25b85d48d3c2"
+    ],
+    "semantic_payloads": {
+      "embeddings/0_1d.bin.gz": {
+        "raw_bytes": 286600,
+        "raw_sha256": "5dec25c164e609b09c44f706ec4d23f9d4520b509927caddf6a11a65938ded98"
+      },
+      "embeddings/1_2d.bin.gz": {
+        "raw_bytes": 573200,
+        "raw_sha256": "9eac1b3ba0689f3718825f9df13bb963317bed99e39bbc07d6b9ec9d289aca65"
+      },
+      "embeddings/2_2d.bin.gz": {
+        "raw_bytes": 573200,
+        "raw_sha256": "bd5ca63def9bae2fba55c7b86a8e465d598a8b4785433e857b2ce668cd1142e0"
+      },
+      "embeddings/3_2d.bin.gz": {
+        "raw_bytes": 573200,
+        "raw_sha256": "5e03b065e2ea878f19984910ec78d3e7d8803b07d31cf5e03019f38c8e45d391"
+      },
+      "embeddings/4_3d.bin.gz": {
+        "raw_bytes": 859800,
+        "raw_sha256": "c8c182d3c680a79cdab18a23c4c8c70ff804c7e62201b47e7044a4904cd1e0df"
+      }
+    },
+    "expected_file_count": 5194,
+    "expected_total_bytes": 21360104,
+    "generation_sha256": "88c8d80ba117609837b2785a4822cbe025e1177e6565381eb596415f2bf01889"
+  }
+}

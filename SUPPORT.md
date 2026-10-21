@@ -4,7 +4,7 @@ Thanks for using the Cellucid demo datasets.
 
 ## Getting help
 
-- Documentation: https://cellucid.readthedocs.io
+- Documentation: https://docs.cellucid.com
 - A sample that will not open, a wrong count, or a wrong label in one of the
   published generations is an issue here:
   https://github.com/theislab/cellucid-datasets/issues
@@ -12,7 +12,7 @@ Thanks for using the Cellucid demo datasets.
   belongs in the web app: https://github.com/theislab/cellucid/issues
 - Questions about the science in one of these atlases belong with the study
   that published it, not here. Each generation records its upstream study in
-  `exports/<id>/dataset_identity.json`.
+  `exports-v3/<id>/dataset_identity.json`.
 - For security issues, see `SECURITY.md`.
 
 ## Data & privacy

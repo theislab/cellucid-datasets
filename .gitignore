@@ -1,41 +1,41 @@
 .DS_Store
 __pycache__/
 .ipynb_checkpoints/
-/exports/_*/
+/exports-v3/_*/
 *.pyc
 
 # cellucid.prepare() keeps one writer lock beside every export directory it
 # rebuilds; the inode outlives the run by design. That design only bounds the
-# count while the locked directory name repeats, which is why build_pancreas.py
+# count while the locked directory name repeats, which is why scripts/pinned_build.py
 # stages under one fixed name: a randomly named stage made prepare() lock a name
 # that could never recur, and every run left one more lock behind.
-/exports/.*.cellucid.lock
+/exports-v3/.*.cellucid.lock
 
-# build_pancreas.py takes a second, non-waiting publication lock beside the
+# scripts/pinned_build.py takes a second, non-waiting publication lock beside the
 # directory it swaps in; a crashed run is what leaves that inode behind.
-/exports/.*.publish.lock
+/exports-v3/.*.publish.lock
 
 # The write-ahead recovery sidecars both publishers place beside the generation
 # they replace: cellucid.prepare()'s journal, its atomic-write temporary, and
-# its staged and set-aside trees, plus the equivalent pair build_pancreas.py
+# its staged and set-aside trees, plus the equivalent pair scripts/pinned_build.py
 # creates. One of these surviving a run means an interrupted publication, and
 # the argument for leaving them visible was that a human should see that in
 # `git status`. They still see it: the generation itself is committed, so an
 # interrupted swap shows up as modified or deleted tracked files under
-# exports/<id>/, which is a louder signal than an untracked sidecar and does
+# exports-v3/<id>/, which is a louder signal than an untracked sidecar and does
 # not depend on this file. What ignoring them prevents is the failure that has
 # no other guard -- a stage or a backup is a complete second copy of the
 # generation, tens of thousands of files, that `git add -A` would commit into
 # the published catalog and that no suite would sweep, because every suite that
-# enumerates exports/ skips hidden entries. An interrupted publication is
+# enumerates exports-v3/ skips hidden entries. An interrupted publication is
 # resolved by rerunning the writer, which reads the journal; it is not resolved
 # by Git.
-/exports/.*.cellucid-transaction.json
-/exports/.*.cellucid-transaction.json.tmp
-/exports/.*.cellucid-stage-*/
-/exports/.*.cellucid-backup-*/
-/exports/.*.stage/
-/exports/.*.backup-*/
+/exports-v3/.*.cellucid-transaction.json
+/exports-v3/.*.cellucid-transaction.json.tmp
+/exports-v3/.*.cellucid-stage-*/
+/exports-v3/.*.cellucid-backup-*/
+/exports-v3/.*.stage/
+/exports-v3/.*.backup-*/
 
 # Tool caches (pytest, mypy, ruff, pytest-benchmark)
 .pytest_cache/
@@ -44,4 +44,4 @@ __pycache__/
 .benchmarks/
 
 # Scratch directories a crashed publisher test can leave behind
-.pancreas-publish-test-*/
+.pinned-publish-test-*/

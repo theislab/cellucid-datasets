@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Turn a Save State into a published `exports/<id>/default.cellucid-session`.
+ * Turn a Save State into a published `exports-v3/<id>/default.cellucid-session`.
  *
  * These two are different documents, and the difference is invisible in the
  * result. Save State writes every chunk the viewer's session contributors emit
@@ -49,7 +49,7 @@ const REPOSITORY_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
 );
-const EXPORTS_ROOT = path.join(REPOSITORY_ROOT, 'exports');
+const EXPORTS_ROOT = path.join(REPOSITORY_ROOT, 'exports-v3');
 const PRESET_FILENAME = 'default.cellucid-session';
 const VIEWER_REPOSITORY_URL = new URL('../../cellucid/', import.meta.url);
 const PUBLISHED_DEFAULT_MODULE_URL = new URL(
@@ -68,6 +68,10 @@ const GL_UTILS_MODULE_URL = new URL(
   'assets/js/rendering/gl-utils.js',
   VIEWER_REPOSITORY_URL,
 );
+const DATASET_MAPPING_MODULE_URL = new URL(
+  'assets/js/data/dataset-mapping.js',
+  VIEWER_REPOSITORY_URL,
+);
 
 /**
  * The viewer's own publish rule.
@@ -78,16 +82,18 @@ const GL_UTILS_MODULE_URL = new URL(
  */
 export async function loadPublishRule() {
   try {
-    const [publishedDefault, reader, sessionContext, glUtils] =
+    const [publishedDefault, reader, sessionContext, glUtils, datasetMapping] =
       await Promise.all([
         import(PUBLISHED_DEFAULT_MODULE_URL.href),
         import(BUNDLE_READER_MODULE_URL.href),
         import(SESSION_CONTEXT_MODULE_URL.href),
         import(GL_UTILS_MODULE_URL.href),
+        import(DATASET_MAPPING_MODULE_URL.href),
       ]);
     return {
       ...publishedDefault,
       digestCellOrder: sessionContext.digestCellOrder,
+      resolveExportDataMapping: datasetMapping.resolveExportDataMapping,
       normalizePositions: glUtils.normalizePositions,
       readBundle: reader.readBundle,
     };
@@ -111,16 +117,24 @@ export async function loadPublishRule() {
  * loaded beside, so publishing has to restate the identity — and may only do so
  * when the capture really was taken against these bytes. Everything below is
  * read out of the generation itself for exactly that reason: the counts from
- * its identity file, and the cell-order digest recomputed from the coordinate
- * payload it ships, through the viewer's own two functions.
+ * its identity file, and the cell-order digest recomputed from the payload of
+ * the embedding the capture names, through the viewer's own two functions.
+ *
+ * A published default is captured in the generation's default data mapping:
+ * every dimension shows its default embedding, genes carry their default
+ * names, and every published vector binding is in use. The viewer verifies a
+ * preset's mapping against the generation before applying anything, so a
+ * capture taken in any other mapping would be refused when the sample opens;
+ * it is refused here instead of being published as a view nobody sees.
  *
  * @param {string} datasetId
  * @param {{ digestCellOrder: Function, normalizePositions: Function,
+ *   resolveExportDataMapping: Function,
  *   PUBLISHED_DEFAULT_SOURCE_TYPE: string }} rule
- * @param {number} dimension - The embedding the capture was taken in.
+ * @param {object} captured - The capture's own dataset fingerprint.
  * @returns {Promise<object>} A dataset fingerprint.
  */
-export async function readPublishedIdentity(datasetId, rule, dimension) {
+export async function readPublishedIdentity(datasetId, rule, captured) {
   const generation = path.join(EXPORTS_ROOT, datasetId);
   const identity = JSON.parse(
     await readFile(path.join(generation, 'dataset_identity.json'), 'utf8'),
@@ -132,41 +146,64 @@ export async function readPublishedIdentity(datasetId, rule, dimension) {
   // one name and ship another.
   if (identity.id !== datasetId) {
     throw new Error(
-      `exports/${datasetId}/ holds a generation that calls itself `
+      `exports-v3/${datasetId}/ holds a generation that calls itself `
         + `"${identity.id}". A preset is published under the id its generation `
         + 'records, and fetched from the directory the catalog names, so those '
         + 'two have to be the same name.',
     );
   }
 
-  // The digest folds over 3-component triples, so reproducing it for another
-  // embedding would mean padding the payload and guessing at what the viewer
-  // holds. A capture in another dimension is refused here rather than published
-  // with a digest nothing verified.
-  if (dimension !== 3) {
+  // The generation's default data mapping, derived by the viewer's own rule
+  // from the identity and the default gene-name set it publishes.
+  const defaults = identity.embeddings?.defaults ?? {};
+  let geneNameSource = null;
+  if (identity.stats.n_genes > 0) {
+    const varManifest = JSON.parse(
+      await readFile(path.join(generation, 'var_manifest.json'), 'utf8'),
+    );
+    geneNameSource = varManifest.gene_name_sets[0].source;
+  }
+  const defaultMapping = rule.resolveExportDataMapping(
+    identity,
+    identity.stats.n_genes > 0 ? { geneNameSets: [{ source: geneNameSource }] } : null,
+  );
+  if (JSON.stringify(captured?.dataMapping) !== JSON.stringify(defaultMapping)) {
     throw new Error(
-      `This capture was taken in the ${dimension}-D view. A published default `
-        + 'is opened in 3-D, and the cell-order digest can only be reproduced '
-        + 'from the 3-D payload, so publishing it would ship an identity this '
-        + 'step could not check. Re-capture the view in 3-D.',
+      'This capture was not taken in the dataset\'s default data mapping '
+        + `(${JSON.stringify(defaultMapping)}). A published default is opened `
+        + 'on the generation as published, so it has to be captured with every '
+        + 'dimension showing its default embedding, its default gene names and '
+        + 'every published vector binding. Capture it again on the generation '
+        + 'as published.',
     );
   }
 
-  const relative = identity.embeddings?.files?.[`${dimension}d`];
-  if (typeof relative !== 'string') {
+  const dimension = captured?.cellOrder?.dimension;
+  const embeddingId = captured?.cellOrder?.embedding?.key;
+  const item = identity.embeddings?.items?.[embeddingId];
+  if (item === undefined || embeddingId !== defaults[`${dimension}d`]) {
     throw new Error(
-      `${datasetId} publishes no ${dimension}-D point payload, so there is `
-        + 'nothing to reproduce the capture\'s cell-order digest from.',
+      `This capture records its cell order on ${JSON.stringify(embeddingId)} `
+        + `in ${dimension}-D, which is not the default ${dimension}-D embedding `
+        + `${datasetId} publishes, so there is no payload to reproduce its `
+        + 'cell-order digest from.',
     );
   }
-  const decompressed = gunzipSync(await readFile(path.join(generation, relative)));
-  const expectedBytes = identity.stats.n_cells * 3 * 4;
+  if (item.dimension !== dimension) {
+    throw new Error(
+      `${datasetId} publishes '${embeddingId}' as a ${item.dimension}-D `
+        + `embedding, while the capture recorded a ${dimension}-D cell order.`,
+    );
+  }
+  const decompressed = gunzipSync(await readFile(path.join(generation, item.file)));
+  const expectedBytes = identity.stats.n_cells * dimension * 4;
   if (decompressed.length !== expectedBytes) {
     throw new Error(
-      `${datasetId}/${relative} holds ${decompressed.length} bytes, and the `
+      `${datasetId}/${item.file} holds ${decompressed.length} bytes, and the `
         + `generation publishes ${identity.stats.n_cells} cells, which is `
-        + `${expectedBytes} bytes of Float32 triples. The generation is not `
-        + 'internally consistent, so no identity read out of it can be trusted.',
+        + `${expectedBytes} bytes of ${dimension}-component Float32 points. The `
+        + 'generation is not internally consistent, so no identity read out of '
+        + 'it can be trusted.',
     );
   }
   // A pooled Buffer carries an arbitrary byteOffset; the digest reads these as
@@ -176,14 +213,19 @@ export async function readPublishedIdentity(datasetId, rule, dimension) {
   const positions = new Float32Array(aligned);
   // The digest is taken over what the viewer holds, which is the payload after
   // the in-place normalization it runs on load.
-  rule.normalizePositions(positions);
+  rule.normalizePositions(positions, dimension);
 
   return {
     sourceType: rule.PUBLISHED_DEFAULT_SOURCE_TYPE,
     datasetId: identity.id,
     cellCount: identity.stats.n_cells,
     varCount: identity.stats.n_genes,
-    cellOrder: { dimension, digest: rule.digestCellOrder(positions) },
+    cellOrder: {
+      embedding: { key: embeddingId, columns: null },
+      dimension,
+      digest: rule.digestCellOrder(positions, dimension),
+    },
+    dataMapping: defaultMapping,
   };
 }
 
@@ -204,9 +246,8 @@ export async function trimSaveStateToPreset(saveStateBytes, datasetId) {
     trimToPublishedDefault,
   } = rule;
 
-  // The capture's own dimension decides which payload the identity is read
-  // from, so a 2-D capture is refused by name rather than compared against a
-  // 3-D digest it was never going to match.
+  // The capture's own cell-order embedding decides which payload the identity
+  // is read from, and its data mapping must be the generation's default one.
   const { manifest: captured } = await readBundle(new Blob([saveStateBytes]), {
     signal: null,
     onProgress: null,
@@ -214,7 +255,7 @@ export async function trimSaveStateToPreset(saveStateBytes, datasetId) {
   const identity = await readPublishedIdentity(
     datasetId,
     rule,
-    captured.datasetFingerprint?.cellOrder?.dimension,
+    captured.datasetFingerprint,
   );
 
   const trimmed = await trimToPublishedDefault(
@@ -243,13 +284,14 @@ export async function trimSaveStateToPreset(saveStateBytes, datasetId) {
 /**
  * Point the catalog at the preset that was just written.
  *
- * The catalog's `state_sha256` is an integrity check the application runs
- * before it applies a published default, so a preset replaced without it is
- * refused at load with "does not match the advertised generation" — and the
- * catalog is served straight off the default branch, which means the mismatch
- * is live the moment it is pushed, and the contract suite can only report it
- * afterwards. Writing the digest here is what removes the window: the artifact
- * and its advertisement move in one step, or neither moves.
+ * The catalog's `state_sha256` and `state_bytes` are integrity checks the
+ * application runs before it applies a published default, so a preset replaced
+ * without them is refused at load ("does not match the advertised generation",
+ * or a length the catalog does not declare) — and the catalog is served
+ * straight off the default branch, which means the mismatch is live the moment
+ * it is pushed, and the contract suite can only report it afterwards. Writing
+ * both here is what removes the window: the artifact and its advertisement
+ * move in one step, or neither moves.
  *
  * The reviewed pins in `tests/` are deliberately *not* written. Those record
  * that somebody looked at the view; a script that updated its own expectations
@@ -257,39 +299,43 @@ export async function trimSaveStateToPreset(saveStateBytes, datasetId) {
  *
  * @param {string} datasetId
  * @param {string} sha256
+ * @param {number} byteLength
  * @returns {Promise<string>} The digest the catalog previously advertised.
  */
-async function repinCatalogState(datasetId, sha256) {
+async function repinCatalogState(datasetId, sha256, byteLength) {
   const catalogPath = path.join(EXPORTS_ROOT, 'datasets.json');
   const text = await readFile(catalogPath, 'utf8');
   const catalog = JSON.parse(text);
   const entry = catalog.datasets?.find(candidate => candidate.id === datasetId);
   if (entry === undefined) {
     throw new Error(
-      `exports/datasets.json advertises no dataset "${datasetId}", so the `
+      `exports-v3/datasets.json advertises no dataset "${datasetId}", so the `
         + 'preset just written would never be fetched.',
     );
   }
   const previous = entry.state_sha256;
-  if (typeof previous !== 'string') {
+  if (typeof previous !== 'string' || !Number.isSafeInteger(entry.state_bytes)) {
     throw new Error(
-      `exports/datasets.json entry for "${datasetId}" carries no state_sha256, `
-        + 'so it does not advertise a published default at all.',
+      `exports-v3/datasets.json entry for "${datasetId}" carries no `
+        + 'state_sha256 and state_bytes, so it does not advertise a published '
+        + 'default at all.',
     );
   }
   // Re-publishing an unchanged capture reproduces the same bytes, and the
   // rewrite below would find nothing to replace and read that as a failure.
-  if (previous === sha256) return previous;
-  // Rewritten as one exact field rather than by re-serializing the catalog, so
-  // publishing a preset cannot reformat, reorder or drop anything else in a
-  // file the application parses.
-  const pattern = new RegExp(`("state_sha256"\\s*:\\s*")${previous}(")`);
-  const updated = text.replace(pattern, `$1${sha256}$2`);
+  if (previous === sha256 && entry.state_bytes === byteLength) return previous;
+  // Rewritten as the two exact fields rather than by re-serializing the
+  // catalog, so publishing a preset cannot reformat, reorder or drop anything
+  // else in a file the application parses.
+  const pattern = new RegExp(
+    `("state_sha256"\\s*:\\s*")${previous}("\\s*,\\s*"state_bytes"\\s*:\\s*)${entry.state_bytes}(?!\\d)`,
+  );
+  const updated = text.replace(pattern, `$1${sha256}$2${byteLength}`);
   if (updated === text) {
     throw new Error(
-      `Could not rewrite the state_sha256 of "${datasetId}" in `
-        + 'exports/datasets.json. Update it by hand to '
-        + `${sha256} before committing.`,
+      `Could not rewrite the state_sha256 and state_bytes of "${datasetId}" in `
+        + 'exports-v3/datasets.json. Update them by hand to '
+        + `${sha256} and ${byteLength} before committing.`,
     );
   }
   await writeFile(catalogPath, updated);
@@ -320,7 +366,11 @@ export async function publishSessionPreset(options) {
     await writeFile(target, result.bytes);
     // After the preset, so a failure to write it leaves the catalog pointing at
     // the file that is still there rather than at one that was never written.
-    advertised = await repinCatalogState(options.datasetId, result.sha256);
+    advertised = await repinCatalogState(
+      options.datasetId,
+      result.sha256,
+      result.bytes.byteLength,
+    );
   }
   return { ...result, advertised, target };
 }
@@ -365,11 +415,12 @@ async function main() {
       + `${published.identity.datasetId}, `
       + `${published.identity.cellCount} cells, `
       + `${published.identity.varCount} genes, `
-      + `${cellOrder.dimension}-D cell order ${cellOrder.digest}\n`
+      + `${cellOrder.dimension}-D cell order on ${cellOrder.embedding.key} `
+      + `${cellOrder.digest}\n`
       + `  sha256 ${published.sha256}\n`
       + (options.dryRun
-        ? '  exports/datasets.json would be repointed at that digest\n'
-        : `  exports/datasets.json repointed at it (was ${
+        ? '  exports-v3/datasets.json would be repointed at that digest\n'
+        : `  exports-v3/datasets.json repointed at it (was ${
           published.advertised})\n`)
       + '  now repin that digest in tests/catalog-contract.test.mjs and '
       + 'tests/session-presets-contract.test.mjs, and re-record the reviewed '

@@ -12,19 +12,21 @@ Open [cellucid.com](https://www.cellucid.com), choose a sample, and start
 exploring. The catalog includes:
 
 - **Suo** — the default tour of the developing human immune system
-- **Pancreas** — pancreatic endocrinogenesis with 1D, 2D, and 3D embeddings,
-  gene expression, connectivities, and RNA-velocity overlays
+- **Pancreas** — pancreatic endocrinogenesis with 1D, 2D, and 3D UMAPs, a PCA
+  view, gene expression, connectivities, and RNA velocity on every UMAP
 - **Garcia, He, and Kanemaru** — prepared developmental atlases of the gonad,
-  the fetal lung, and the heart
+  the fetal lung, and the fetal heart
+
+The four human atlases each offer a 1D, 2D, and 3D UMAP of one shared
+neighbour graph and a PCA view of the unintegrated data; Garcia, He, and
+Kanemaru also carry the 2D UMAP shipped in their source files.
 
 These datasets are demonstrations, not templates for storing your own data in
 this repository.
 
 ## Gene names, and the genes these samples leave out
 
-Cellucid publishes one name per gene and no second identifier, so that name is
-the only way to reach a gene in the gene search, the legend, or an analysis
-window. Every sample publishes fewer genes than its source file holds:
+Every sample publishes fewer genes than its source file holds:
 
 | sample | genes in the source | published | left out |
 | --- | --- | --- | --- |
@@ -35,31 +37,29 @@ window. Every sample publishes fewer genes than its source file holds:
 | Pancreas | 27,998 | 3,753 | 24,245 |
 
 The four human sources are integrated files already cut to 8,192 features
-upstream, and they name genes by Ensembl accession, not symbol. Their export
-notebooks translate those accessions against a fixed symbol table, with no
-network lookup. **A gene whose accession has no symbol is not published at
-all**, because an accession is not a name a reader would type. Each
-`<id>_2_export_cellucid.ipynb` prints that breakdown, including accessions the
-table resolves only to another accession, which count as unnamed too.
+upstream, and they name genes by Ensembl accession. Their builds translate the
+accessions against a fixed symbol table, with no network lookup, and publish two
+gene-name sets: the symbol, shown by default, and the Ensembl accession, kept
+as the second set. **A gene whose accession has no symbol is
+not published at all**, because an accession alone is not a name a reader would
+type; that includes accessions the table resolves only to another accession.
 
-Pancreas is mouse and arrives with MGI symbols, so no translation applies. Its
-pinned build script publishes only the genes its source marks
-`highly_variable_genes == "True"` that are also nonconstant.
+Pancreas is mouse and arrives with MGI symbols, so it carries one name set. It
+publishes only the genes its source marks `highly_variable_genes == "True"`
+that are also nonconstant.
 
-Each built-in catalog entry uses paired `state_manifest` and `state_sha256`
-fields to advertise and verify one lightweight close-up state beside its
-prepared generation: `cell_type` coloring, a static 3D Orbit view, and the
+Each catalog entry's `state_manifest`, `state_sha256` and `state_bytes`
+advertise and verify one close-up state beside its prepared generation: `cell_type` coloring, a static 3D Orbit view, and the
 light grid background, with no camera animation or changed filters.
 
 ## How reproducible each sample is
 
-The five do not carry the same guarantee. **Pancreas** is rebuilt by a pinned
-script that verifies its source, its environment, the exporter's own code, and a
-digest of all it writes, so a rebuild that differed would stop rather than
-publish. The other four come from the notebooks in `notebooks/`, which pin no
-version and take no checksum, and read source data this repository does not
-hold. `sources/unpinned-generations.json` records what can still be checked
-about them, and says plainly what that does not prove.
+All five are rebuilt by pinned scripts that verify their source file by size
+and SHA-256, their environment, the exporter's own code, and a digest of all
+they write, so a rebuild that differed would stop rather than publish. Pancreas
+downloads its commit-pinned public source. The four human atlases are built
+from integrated files this repository does not hold and may not redistribute;
+`sources/<id>.json` records exactly which bytes rebuild them.
 
 ## Publish your own datasets
 
@@ -68,25 +68,37 @@ Start with
 for three small, complete examples and a step-by-step guide to creating and
 hosting your own dataset repository. For private data, large atlases, direct
 AnnData loading, or server-based workflows, use the
-[data-loading guide](https://cellucid.readthedocs.io/en/latest/user_guide/web_app/b_data_loading/index.html).
+[data-loading guide](https://docs.cellucid.com/en/latest/user_guide/web_app/b_data_loading/index.html).
 
 ## Licensing and data terms
 
 `LICENSE` covers this repository's own material — the export notebooks, the
-build script, the test suites, and the catalog metadata — under BSD 3-Clause.
+build scripts, the test suites, and the catalog metadata — under BSD 3-Clause.
 
-The prepared datasets under `exports/` are not covered by it. They are
+The prepared datasets under `exports-v3/` are not covered by it. They are
 redistributed from published third-party studies and stay under the terms of
 those studies. Each generation names its upstream in
-`exports/<id>/dataset_identity.json` under `source`, with the study name, its
+`exports-v3/<id>/dataset_identity.json` under `source`, with the study name, its
 URL, and the citation to use. Read those terms at the study before reusing a
 dataset, and cite the study rather than this repository.
 
 ## Cellucid ecosystem
 
 - [Web application](https://github.com/theislab/cellucid)
-- [Documentation](https://cellucid.readthedocs.io/en/latest/)
+- [Documentation](https://docs.cellucid.com/en/latest/)
 - [Python package](https://github.com/theislab/cellucid-python)
 - [R package](https://github.com/theislab/cellucid-r)
 - [Community annotation repository](https://github.com/theislab/cellucid-annotation)
 - [Custom dataset repository examples](https://github.com/theislab/cellucid-demo-custom-datasets)
+
+## Citation
+
+<!-- BEGIN cellucid-citation (generated by cellucid-private/scripts/sync_citation.py from CITATION.cff; do not edit) source-sha256=2486463f2b7c8cc656ae41e2df0261c1eb79780c4d635be147215f409b89aa2a body-sha256=5186fc40b9eddfb904fab52bee5362bf27a8d6c3713f9b67b1defa1c68c54d3f -->
+> **Placeholder citation.** The Cellucid preprint is in preparation for bioRxiv and has no DOI yet; the reference below is a placeholder and will be replaced when the preprint is published.
+
+If you use Cellucid, please cite:
+
+Inecik, K. PLACEHOLDER: Cellucid preprint, title to be announced (forthcoming on bioRxiv). *bioRxiv* (in preparation).
+
+BibTeX and other formats: [Citing Cellucid](https://docs.cellucid.com/en/latest/citing.html).
+<!-- END cellucid-citation -->

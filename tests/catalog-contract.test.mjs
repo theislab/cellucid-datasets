@@ -14,25 +14,28 @@ const EXPECTED_DATASET_IDS = Object.freeze([
   'kanemaru',
   'pancreas',
 ]);
-const EXPORTS_URL = new URL('../exports/', import.meta.url);
+const EXPORTS_URL = new URL('../exports-v3/', import.meta.url);
 const CATALOG_URL = new URL('datasets.json', EXPORTS_URL);
 const GITIGNORE_URL = new URL('../.gitignore', import.meta.url);
 const PUBLICATION_SIDECAR_NAMES = new Set([
   'default.cellucid-session',
   'state-snapshots.json',
 ]);
-const PANCREAS_PROVENANCE_URL = new URL(
-  '../sources/pancreas.json',
+const SOURCES_URL = new URL('../sources/', import.meta.url);
+const PANCREAS_PROVENANCE_URL = new URL('pancreas.json', SOURCES_URL);
+const BUILD_ENVIRONMENT_URL = new URL('build-environment.json', SOURCES_URL);
+const BUILD_REQUIREMENTS_URL = new URL(
+  '../requirements-build.lock',
   import.meta.url
 );
-const PANCREAS_REQUIREMENTS_URL = new URL(
-  '../requirements-pancreas.lock',
-  import.meta.url
-);
-const UNPINNED_GENERATIONS_URL = new URL(
-  '../sources/unpinned-generations.json',
-  import.meta.url
-);
+/** Which pinned builder produces each published generation. */
+const GENERATION_BUILDERS = Object.freeze({
+  garcia: 'scripts/build_atlas.py',
+  he: 'scripts/build_atlas.py',
+  kanemaru: 'scripts/build_atlas.py',
+  pancreas: 'scripts/build_pancreas.py',
+  suo: 'scripts/build_atlas.py',
+});
 const CATALOG_REQUIRED_KEYS = Object.freeze([
   'datasets',
   'default',
@@ -44,15 +47,16 @@ const ENTRY_OPTIONAL_KEYS = Object.freeze([
   'n_cells',
   'n_genes',
   'name',
+  'state_bytes',
   'state_manifest',
   'state_sha256',
 ]);
 const EXPECTED_STATE_SHA256 = Object.freeze({
-  suo: '000063ef8b4617ae58d9275b9c18ac6a38bd950df35c828f2514046a3a210417',
-  garcia: 'b246daf96914be1db847bc1dc565a191d1257f48525d2930beb7190a00c247a8',
-  he: 'cc88d26764ba24459463e14b90c39c37a16ae55512a0210820476a8352224682',
-  kanemaru: '5adb4368b7b0a2d4b892785d6486c125308afd8f632e649f67b648596e0a49ac',
-  pancreas: 'a37e0500ecac42ec123dc958f19f5190a8124c6cb2f12125af4e646660b3ec42',
+  suo: '6357765ba0aa96bedd2caaa6076c81f44d8ff021d72b377f89e16ba2834aea49',
+  garcia: '8cb657811976a23296cfb7ecd987ab634a808b093e9a14a656262a2d2d199440',
+  he: '32369a536a22585b1d905c3a778fa41a49e5e4591112313ecb6ed7709e45a756',
+  kanemaru: '76af3a7897d6e7fae330d59e6665a1cfabb7736321b3d11fe5ffb6ecfcf8a05d',
+  pancreas: '598cda75e3c6c05a0f01a1d64d4b8a532fdc442ce50455c14f7fe9e79b9034f6',
 });
 const IDENTITY_REQUIRED_KEYS = Object.freeze([
   'cellucid_data_version',
@@ -97,7 +101,7 @@ const DISTINCT_WEIGHT_SAMPLE_LIMIT = 8;
  * third, a column something upstream collapsed, is a defect, and nothing in
  * this repository is in that state today.
  *
- * Every entry below was measured twice: here, against `exports/`, and against
+ * Every entry below was measured twice: here, against `exports-v3/`, and against
  * the source object the generation was prepared from. `origin: 'source'` means
  * the source AnnData declares and uses exactly this one category over exactly
  * the cells the generation publishes, so nothing was lost on the way out.
@@ -106,7 +110,7 @@ const DISTINCT_WEIGHT_SAMPLE_LIMIT = 8;
  * still show the column varying, which is the part of the reason this
  * repository can re-measure.
  *
- * Nothing here can be fixed by deleting a field from `exports/`: republishing a
+ * Nothing here can be fixed by deleting a field from `exports-v3/`: republishing a
  * generation is a coordinated change across the writers, the reader and the
  * presets. The list is what makes the cost visible and what fails the moment a
  * new flat colouring is published or an old one starts to carry information.
@@ -128,8 +132,9 @@ const CONSTANT_OBS_FIELDS = Object.freeze({
     missing: 0,
     origin: 'source',
     reason:
-      'whole cells rather than nuclei, which is what every generation in this '
-      + 'catalog was sequenced from; the source declares this one category',
+      'whole cells rather than nuclei, as in He and Suo; the source declares '
+      + 'this one category, and Kanemaru publishes the same column with Cell '
+      + 'and Nuclei',
   }),
   'garcia/integration_library_platform_coarse': Object.freeze({
     value: '5GEX',
@@ -181,8 +186,9 @@ const CONSTANT_OBS_FIELDS = Object.freeze({
     missing: 0,
     origin: 'source',
     reason:
-      'E-MTAB-12916 is one cardiac study, and `organ` is the cross-organ '
-      + 'covariate of the shared developmental-atlas annotation; the source '
+      'the Developing Heart Cell Atlas is one cardiac study, and `organ` is '
+      + 'the cross-organ covariate of the shared developmental-atlas '
+      + 'annotation; the source '
       + 'declares and uses the single category Heart over all 131,636 cells',
   }),
   'suo/integration_biological_unit': Object.freeze({
@@ -220,29 +226,33 @@ const CONSTANT_OBS_FIELDS = Object.freeze({
 });
 const CONSTANT_OBS_FIELD_ORIGINS = Object.freeze(['source', 'subset']);
 const OBS_FIELD_REQUIRED_KEYS = Object.freeze(['key', 'kind']);
+const EMBEDDINGS_KEYS = Object.freeze(['default_dimension', 'defaults', 'items']);
+const EMBEDDING_ITEM_KEYS = Object.freeze(['dimension', 'file', 'label', 'source']);
 const OBS_FIELD_OPTIONAL_KEYS = Object.freeze(['n_categories']);
 /**
  * Every published generation redistributes somebody else's atlas, so every one
  * of them carries a citation; a source record with a name and a URL but no
  * citation is the attribution failure this table exists to keep out.
  *
- * The four human atlases are cited by their ArrayExpress study title and
- * accession and by nothing else. No author, year, journal or DOI appears here,
- * because the repository establishes none of them: the integration outputs under
- * `.anndatas/` carry no bibliographic record, and each
- * `<id>_1_prepare_anndata.ipynb` names only the accession. Filling those fields
- * in is a real improvement and it is welcome, but it has to come from the
- * primary publications, and the export notebook's `source_citation=` argument is
- * where it lands -- `dataset_identity.json` is written by `prepare`, never by
+ * Each value was checked against the archive or publication it names, not
+ * copied from an earlier record. Suo, Garcia and He are cited by their study
+ * title and the ArrayExpress accession that holds the study's scRNA-seq
+ * libraries; for Suo that is E-MTAB-11343, not the study's Visium accession
+ * E-MTAB-11341. Kanemaru is the fetal heart of the Developing Heart Cell Atlas
+ * (every one of its ten donors is an atlas donor, and none is a donor of the
+ * adult-heart study E-MTAB-12916); that study has deposited no RNA accession in
+ * a public archive, so it is cited by its preprint DOI and named by its data
+ * portal. The values originate in `sources/<id>.json`, which the pinned build
+ * passes to `prepare`; `dataset_identity.json` is written by `prepare`, never by
  * hand, so a citation edited into the JSON alone would be gone at the next
  * rebuild.
  */
 const SOURCE_EXPECTATIONS = Object.freeze({
   suo: {
-    name: 'E-MTAB-11341',
-    url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11341',
+    name: 'E-MTAB-11343',
+    url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11343',
     citation:
-      'Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11341.',
+      'Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11343.',
   },
   garcia: {
     name: 'E-MTAB-10551',
@@ -257,10 +267,10 @@ const SOURCE_EXPECTATIONS = Object.freeze({
       'A human fetal lung cell atlas uncovers proximal-distal gradients of differentiation and key regulators of epithelial fates. ArrayExpress study E-MTAB-11278.',
   },
   kanemaru: {
-    name: 'E-MTAB-12916',
-    url: 'https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-12916',
+    name: 'Developing Heart Cell Atlas',
+    url: 'https://www.heartcellatlas.org/foetal.html',
     citation:
-      'Spatially resolved multiomics of human cardiac niches. ArrayExpress study E-MTAB-12916.',
+      'Cranley J, Kanemaru K, Bayraktar S, Knight-Schrijver V, et al. Developmental Dynamics of Human Cardiogenesis: A multi-omic reference and its disruption in Trisomy 21. bioRxiv. 2024. doi:10.1101/2024.04.29.591736.',
   },
   pancreas: {
     name: 'scVelo pancreas (GSE132188 E15.5)',
@@ -300,11 +310,12 @@ const CONNECTIVITY_REQUIRED_KEYS = Object.freeze([
 const CANONICAL_INDEX = /^(?:0|[1-9][0-9]*)$/;
 /** Every payload name each axis directory is allowed to hold, by index. */
 const INDEXED_PAYLOAD_NAMES = Object.freeze({
+  embeddings: /^(?:0|[1-9][0-9]*)_[123]d\.bin(?:\.gz)?$/,
   var: /^(?:0|[1-9][0-9]*)\.values\.(?:u8|f32)(?:\.gz)?$/,
-  obs: /^(?:0|[1-9][0-9]*)\.(?:values\.(?:u8|f32)|codes\.u(?:8|16)|outliers\.(?:u8|f32))(?:\.gz)?$/,
-  vectors: /^(?:0|[1-9][0-9]*)_[123]d\.bin(?:\.gz)?$/,
+  obs: /^(?:0|[1-9][0-9]*)\.(?:values\.(?:u8|f32)|codes\.u(?:8|16|32)|outliers\.(?:u8|f32))(?:\.gz)?$/,
+  vectors: /^(?:0|[1-9][0-9]*)_(?:0|[1-9][0-9]*)\.bin(?:\.gz)?$/,
 });
-const PAYLOAD_AXES = Object.freeze(['var', 'obs', 'vectors']);
+const PAYLOAD_AXES = Object.freeze(['embeddings', 'var', 'obs', 'vectors']);
 /**
  * The connectivity graph is one edge list per generation, so its three payloads
  * need no name of their own and are given none: every generation publishes the
@@ -327,13 +338,11 @@ const GENERATION_ROOT_FILES = Object.freeze([
   'connectivity_manifest.json',
   'dataset_identity.json',
   'obs_manifest.json',
-  'points_1d.bin.gz',
-  'points_2d.bin.gz',
-  'points_3d.bin.gz',
   'var_manifest.json',
 ]);
 const GENERATION_DIRECTORIES = Object.freeze([
   'connectivity',
+  'embeddings',
   'obs',
   'var',
   'vectors',
@@ -393,10 +402,10 @@ function assertExactKeys(
 function assertStateCapability(entry, label) {
   const hasManifest = Object.hasOwn(entry, 'state_manifest');
   const hasSha256 = Object.hasOwn(entry, 'state_sha256');
-  assert.equal(
-    hasManifest,
-    hasSha256,
-    `${label} state_manifest and state_sha256 must appear together`
+  const hasBytes = Object.hasOwn(entry, 'state_bytes');
+  assert.ok(
+    hasManifest === hasSha256 && hasManifest === hasBytes,
+    `${label} state_manifest, state_sha256 and state_bytes must appear together`
   );
   if (!hasManifest) {
     return false;
@@ -410,6 +419,10 @@ function assertStateCapability(entry, label) {
     entry.state_sha256,
     /^[0-9a-f]{64}$/,
     `${label}.state_sha256 must be one lowercase SHA-256`
+  );
+  assert.ok(
+    Number.isSafeInteger(entry.state_bytes) && entry.state_bytes > 0,
+    `${label}.state_bytes must be the state's exact positive byte length`
   );
   return true;
 }
@@ -473,7 +486,7 @@ function resolveSafeDirectoryPath(value, id) {
   const resolved = new URL(canonicalPath, EXPORTS_URL);
   assert.ok(
     resolved.href.startsWith(EXPORTS_URL.href),
-    `dataset '${id}' path must remain below exports/`
+    `dataset '${id}' path must remain below exports-v3/`
   );
   return resolved;
 }
@@ -552,7 +565,8 @@ function readObsContinuousFields(datasetId, manifest) {
  * another field's scale.
  *
  * `minValue` and `maxValue` are the payload's own extremes, so a manifest that
- * declares a range has a cell at each end and the codes must differ. compact_v1's
+ * declares a range has a cell at each end and the codes must differ. The compact
+ * manifests'
  * constant case is the complement: equal bounds, and then every code is `0`,
  * which the viewer decodes back to that exact value. A field carrying one value
  * -- a gene a lineage subset left undetected, a column the subset flattened --
@@ -624,35 +638,62 @@ function readObsCategoricalFields(datasetId, manifest, extension) {
 }
 
 /** The extension the declared categorical code width writes into a filename. */
+/**
+ * The export format's categorical code widths: file extension, bytes per
+ * code, the missing marker (the width's largest value) and how to read code
+ * `index` of a decompressed payload.
+ */
+const CATEGORICAL_CODE_WIDTHS = Object.freeze({
+  uint8: Object.freeze({ extension: 'u8', bytes: 1, missing: 255, read: (buffer, index) => buffer[index] }),
+  uint16: Object.freeze({ extension: 'u16', bytes: 2, missing: 65535, read: (buffer, index) => buffer.readUInt16LE(index * 2) }),
+  uint32: Object.freeze({ extension: 'u32', bytes: 4, missing: 4294967295, read: (buffer, index) => buffer.readUInt32LE(index * 4) }),
+});
+
+function categoricalCodeWidth(declaredDtype, datasetId) {
+  const width = Object.hasOwn(CATEGORICAL_CODE_WIDTHS, declaredDtype)
+    ? CATEGORICAL_CODE_WIDTHS[declaredDtype]
+    : null;
+  assert.ok(
+    width !== null,
+    `${datasetId} must declare exactly uint8, uint16 or uint32 categorical codes`
+  );
+  return width;
+}
+
 function categoricalCodeExtension(declaredDtype) {
-  return declaredDtype === 'uint8' ? 'u8' : 'u16';
+  return categoricalCodeWidth(declaredDtype, 'dataset').extension;
 }
 
 /**
  * Every vector field a generation declares, with the integer that names its
- * payloads read back out of the files it points at. A field whose three
- * dimensions do not agree on one integer is reported as `index: null`, which
- * the contract below rejects.
+ * payloads read back out of the files it points at. A field is bound to
+ * embedding items, and each payload path is fixed by the producer rule
+ * `vectors/{field index}_{embedding index}.bin(.gz)`: the field's position in
+ * `vector_fields.fields`, then the bound item's position in
+ * `embeddings.items`. A field whose paths do not agree on one field index, or
+ * any path that is not exactly the string that rule produces, is reported as
+ * `index: null`, which the contract below rejects.
  */
 function readVectorFields(identity) {
   const fields = identity.vector_fields?.fields ?? {};
+  const itemIds = Object.keys(identity.embeddings?.items ?? {});
+  const suffix = identity.export_settings?.compression === null ? '' : '.gz';
   return Object.entries(fields).map(([label, field]) => {
-    const stems = new Set();
+    const indices = new Set();
     const files = [];
-    for (const dimension of field.available_dimensions) {
-      const relative = field.files?.[`${dimension}d`];
+    for (const [embeddingId, relative] of Object.entries(field.files ?? {})) {
       files.push(relative);
-      const match = /^vectors\/(.+)_[123]d\.bin(?:\.gz)?$/.exec(relative ?? '');
-      stems.add(match === null ? null : match[1]);
+      const match = /^vectors\/(.+)_(.+)\.bin(?:\.gz)?$/.exec(relative ?? '');
+      const embeddingIndex = itemIds.indexOf(embeddingId);
+      const exact =
+        match !== null
+        && CANONICAL_INDEX.test(match[1])
+        && embeddingIndex >= 0
+        && relative === `vectors/${match[1]}_${embeddingIndex}.bin${suffix}`;
+      indices.add(exact ? Number(match[1]) : null);
     }
-    const stem = stems.size === 1 ? [...stems][0] : null;
-    return {
-      label,
-      field,
-      files,
-      stem,
-      index: stem !== null && CANONICAL_INDEX.test(stem) ? Number(stem) : null,
-    };
+    const index = indices.size === 1 ? [...indices][0] : null;
+    return { label, field, files, index };
   });
 }
 
@@ -782,13 +823,9 @@ async function measureConstantCategoricalFields(datasetId) {
     new URL('obs_manifest.json', directoryUrl)
   );
   const declaredDtype = identity.export_settings?.obs_categorical_dtype;
-  assert.ok(
-    declaredDtype === 'uint8' || declaredDtype === 'uint16',
-    `${datasetId} must declare exactly uint8 or uint16 categorical codes`
-  );
-  const bytesPerCode = declaredDtype === 'uint8' ? 1 : 2;
-  const missingCode = declaredDtype === 'uint8' ? 255 : 65535;
-  const extension = categoricalCodeExtension(declaredDtype);
+  const width = categoricalCodeWidth(declaredDtype, datasetId);
+  const missingCode = width.missing;
+  const extension = width.extension;
   const constant = new Map();
   for (const { key, categories, codesPath } of readObsCategoricalFields(
     datasetId,
@@ -799,8 +836,7 @@ async function measureConstantCategoricalFields(datasetId) {
     const used = new Set();
     let missing = 0;
     for (let cell = 0; cell < identity.stats.n_cells; cell++) {
-      const code =
-        bytesPerCode === 1 ? codes[cell] : codes.readUInt16LE(cell * 2);
+      const code = width.read(codes, cell);
       if (code === missingCode) {
         missing += 1;
         continue;
@@ -1039,20 +1075,20 @@ async function assertConnectivityEdgePayload(
 /* published-generations:begin */
 /**
  * The one definition of "published" these suites have, held byte-identical in
- * every file that enumerates `exports/`. Two files that each decided for
- * themselves which directories under `exports/` counted governed different
+ * every file that enumerates `exports-v3/`. Two files that each decided for
+ * themselves which directories under `exports-v3/` counted governed different
  * sets of artifacts while reading as though they governed the same set, and
  * whichever definition was widened first would have won in silence.
  *
  * The rule itself is not restated here. It is read out of `.gitignore`, which
- * is what actually decides whether a directory under `exports/` is committed:
- * every `/exports/<glob>/` line names a tree the repository keeps out, and a
+ * is what actually decides whether a directory under `exports-v3/` is committed:
+ * every `/exports-v3/<glob>/` line names a tree the repository keeps out, and a
  * hidden entry is never a prepared generation.
  * `repository-organization-contract.test.mjs` fails if a copy of this block
- * diverges from the others, if a suite that enumerates `exports/` carries no
+ * diverges from the others, if a suite that enumerates `exports-v3/` carries no
  * copy, or if any suite selects generations by a name convention of its own.
  */
-const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports/';
+const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports-v3/';
 
 function publishedGenerationNames(entries, gitignoreText) {
   const excluded = gitignoreText
@@ -1066,7 +1102,7 @@ function publishedGenerationNames(entries, gitignoreText) {
     .map((line) => line.slice(PUBLISHED_GENERATION_IGNORE_SCOPE.length, -1));
   assert.ok(
     excluded.length > 0,
-    '.gitignore names no uncommitted directory under exports/, so the rule '
+    '.gitignore names no uncommitted directory under exports-v3/, so the rule '
       + 'these suites select published generations by is no longer there to read'
   );
   const patterns = excluded.map(
@@ -1093,7 +1129,7 @@ function publishedGenerationNames(entries, gitignoreText) {
 const catalog = await readJson(CATALOG_URL);
 
 /**
- * Every prepared generation committed to `exports/`, whether or not
+ * Every prepared generation committed to `exports-v3/`, whether or not
  * `datasets.json` advertises it yet, selected by the shared rule above so this
  * sweep and the state-artifact sweep in `session-presets-contract.test.mjs`
  * cannot disagree about which directories are published. Discovery is asserted
@@ -1123,7 +1159,7 @@ const PUBLISHED_CONNECTIVITY_DATASET_IDS = Object.freeze(
   )
 );
 
-test('the payload/bounds agreement check reads both compact_v1 range cases', () => {
+test('the payload/bounds agreement check reads both quantized range cases', () => {
   // No generation published today carries a constant continuous field, so the
   // constant branch has no artifact to measure and is asserted here instead.
   // A generation that does carry one must still be checked rather than waved
@@ -1165,11 +1201,11 @@ test('the payload/bounds agreement check reads both compact_v1 range cases', () 
   );
 });
 
-test('every prepared generation in exports/ is swept for payload content', () => {
+test('every prepared generation in exports-v3/ is swept for payload content', () => {
   for (const datasetId of EXPECTED_DATASET_IDS) {
     assert.ok(
       PUBLISHED_DATASET_IDS.includes(datasetId),
-      `catalogued dataset '${datasetId}' has no prepared generation in exports/`
+      `catalogued dataset '${datasetId}' has no prepared generation in exports-v3/`
     );
   }
   for (const datasetId of CONNECTIVITY_DATASET_IDS) {
@@ -1195,7 +1231,7 @@ test('no published generation carries a dot-prefixed file', async () => {
   const { promisify } = await import('node:util');
   const tracked = await promisify(execFile)(
     'git',
-    ['ls-files', '-z', '--', 'exports'],
+    ['ls-files', '-z', '--', 'exports-v3'],
     { cwd: fileURLToPath(new URL('..', import.meta.url)), maxBuffer: 64 << 20 }
   ).then(
     result => result.stdout.split('\0').filter(line => line.length > 0),
@@ -1208,7 +1244,7 @@ test('no published generation carries a dot-prefixed file', async () => {
   );
   assert.ok(
     tracked.length > 0,
-    'git reported no published files under exports/, so this check compared '
+    'git reported no published files under exports-v3/, so this check compared '
       + 'nothing'
   );
   const dotted = tracked.filter(relative =>
@@ -1219,7 +1255,7 @@ test('no published generation carries a dot-prefixed file', async () => {
     [],
     'a published generation now carries a dot-prefixed file, which '
       + 'generationDigest() skips as local tool metadata. Its bytes are '
-      + 'therefore in no pin. Either it does not belong in exports/, or the '
+      + 'therefore in no pin. Either it does not belong in exports-v3/, or the '
       + 'exclusion has to learn the difference'
   );
 });
@@ -1422,7 +1458,8 @@ test('catalogued source records exactly agree with their authorities', async () 
 
 test('pancreas provenance and artifacts form one exact multidimensional velocity generation', async () => {
   const provenance = await readJson(PANCREAS_PROVENANCE_URL);
-  const requirementsLock = await readFile(PANCREAS_REQUIREMENTS_URL);
+  const environment = await readJson(BUILD_ENVIRONMENT_URL);
+  const requirementsLock = await readFile(BUILD_REQUIREMENTS_URL);
   const directoryUrl = new URL('pancreas/', EXPORTS_URL);
   const identity = await readJson(
     new URL('dataset_identity.json', directoryUrl)
@@ -1434,13 +1471,15 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
     new URL('var_manifest.json', directoryUrl)
   );
 
-  assert.equal(provenance.schema_version, 2);
+  assert.equal(provenance.schema_version, 3);
   assertSha256Fields(provenance);
+  assertSha256Fields(environment);
   assert.equal(JSON.stringify(provenance).includes('PENDING'), false);
+  assert.equal(JSON.stringify(environment).includes('PENDING'), false);
   assert.equal(provenance.dataset_id, 'pancreas');
   assert.equal(
     sha256(requirementsLock),
-    provenance.build_environment.requirements_lock_sha256
+    environment.requirements_lock_sha256
   );
   assert.doesNotMatch(
     requirementsLock.toString('utf8'),
@@ -1449,27 +1488,28 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
   );
   assert.deepEqual(
     {
-      repository:
-        provenance.build_environment.cellucid_producer.repository,
-      version: provenance.build_environment.cellucid_producer.version,
-      sourceTree:
-        provenance.build_environment.cellucid_producer
-          .source_tree_manifest_sha256,
+      repository: environment.cellucid_producer.repository,
+      version: environment.cellucid_producer.version,
+      sourceTree: environment.cellucid_producer.source_tree_manifest_sha256,
     },
     {
       repository: 'https://github.com/theislab/cellucid-python',
-      version: '0.9.1',
-      // Repinned deliberately, twice now: first when the producer gained its
-      // manifest read-back check, then when it gained the surrogate and
-      // float32-underflow refusals. Each time verified output-neutral rather
-      // than assumed - a full rebuild against the new producer reproduced
-      // generation_sha256 89c6b684... exactly, and all 3,774 artifacts
-      // compared byte-identical to the published generation. Any change under
-      // cellucid-python/src/cellucid/ lands here, so run this suite after one.
-      // This pin is the second of two on purpose - moving sources/pancreas.json
-      // alone must fail here, so a repin cannot happen silently.
+      version: '0.9.3',
+      // Repinned deliberately, never assumed. Export format 3 moved every
+      // coordinate payload under embeddings/, bound vector fields to embedding
+      // items and added gene-name sets, and 0.9.3 computes latent outlier
+      // quantiles by the rule the viewer and R share, so all five generations
+      // were rebuilt by their pinned builders against the 0.9.3 producer and
+      // repinned together. Any change under cellucid-python/src/cellucid/ that the
+      // export path executes lands here, so run this suite after one. This pin
+      // is the second of two on purpose - moving
+      // sources/build-environment.json alone must fail here, so a repin
+      // cannot happen silently. Repinned again for the producer that writes
+      // uint32 categorical codes and all-missing outlier quantiles: all five
+      // generations were rebuilt by their pinned builders against it and came
+      // out byte-identical to the published ones.
       sourceTree:
-        '977d07007990a34da3bb5534cc78e8e5a0c5b13ff4211def6630d79fe25a6cf7',
+        '241d4ebc1a5df2acce3ef0fd578473054bf1e9b2909435a998504bf1cec46f26',
     }
   );
   assert.equal(
@@ -1527,12 +1567,9 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
   };
   assert.equal(
     identity.cellucid_data_version,
-    output.cellucid_data_version
+    environment.cellucid_producer.version
   );
   assert.equal(identity.id, provenance.dataset_id);
-  assert.equal(identity.name, output.dataset_name);
-  assert.equal(identity.description, output.dataset_description);
-  assert.equal(identity.created_at, output.artifact_created_at);
   assert.deepEqual(identity.source, SOURCE_EXPECTATIONS.pancreas);
   assert.equal(identity.stats.n_cells, input.n_cells);
   assert.equal(
@@ -1547,40 +1584,57 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
   assert.equal(identity.stats.n_continuous_fields, 2);
   assert.equal(identity.stats.has_connectivity, true);
   assert.equal(identity.stats.n_edges, 33_476);
+  // Three UMAPs - the source-owned 2D layout and the 1D and 3D layouts derived
+  // from the same graph - and the first two components of the source PCA,
+  // which shows the second 2D embedding the format now carries.
   assert.deepEqual(identity.embeddings, {
-    available_dimensions: [1, 2, 3],
     default_dimension: 3,
-    files: {
-      '1d': 'points_1d.bin.gz',
-      '2d': 'points_2d.bin.gz',
-      '3d': 'points_3d.bin.gz',
+    defaults: { '1d': 'X_umap_1d', '2d': 'X_umap', '3d': 'X_umap_3d' },
+    items: {
+      X_umap_1d: {
+        label: 'UMAP',
+        dimension: 1,
+        file: 'embeddings/0_1d.bin.gz',
+        source: { key: null, columns: [0] },
+      },
+      X_pca: {
+        label: 'PCA',
+        dimension: 2,
+        file: 'embeddings/1_2d.bin.gz',
+        source: { key: 'X_pca', columns: [0, 1] },
+      },
+      X_umap: {
+        label: 'UMAP',
+        dimension: 2,
+        file: 'embeddings/2_2d.bin.gz',
+        source: { key: 'X_umap', columns: [0, 1] },
+      },
+      X_umap_3d: {
+        label: 'UMAP',
+        dimension: 3,
+        file: 'embeddings/3_3d.bin.gz',
+        source: { key: null, columns: [0, 1, 2] },
+      },
     },
   });
+  // Velocity is projected onto the three UMAPs it was fitted against, and not
+  // onto the PCA view: a field is bound to the embeddings it was computed for.
   assert.deepEqual(identity.vector_fields, {
-    default_field: 'velocity_umap',
+    default_field: 'velocity',
     fields: {
-      velocity_umap: {
-        label: 'velocity_umap',
-        basis: 'umap',
-        available_dimensions: [1, 2, 3],
-        default_dimension: 3,
+      velocity: {
+        label: 'velocity',
         files: {
-          '1d': 'vectors/0_1d.bin.gz',
-          '2d': 'vectors/0_2d.bin.gz',
-          '3d': 'vectors/0_3d.bin.gz',
+          X_umap_1d: 'vectors/0_0.bin.gz',
+          X_umap: 'vectors/0_2.bin.gz',
+          X_umap_3d: 'vectors/0_3.bin.gz',
         },
       },
     },
   });
-  assert.deepEqual(identity.export_settings, {
-    compression: output.compression,
-    var_quantization: output.var_quantization,
-    obs_continuous_quantization:
-      output.obs_continuous_quantization,
-    obs_categorical_dtype: output.obs_categorical_dtype,
-  });
+  assert.deepEqual(identity.export_settings, output.identity.export_settings);
 
-  assert.equal(obsManifest._format, 'compact_v1');
+  assert.equal(obsManifest._format, 'compact_v2');
   assert.equal(obsManifest.n_points, input.n_cells);
   assert.equal(
     obsManifest.centroid_outlier_quantile,
@@ -1590,7 +1644,7 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
   const pancreasCategorical = readObsCategoricalFields(
     'pancreas',
     obsManifest,
-    categoricalCodeExtension(output.obs_categorical_dtype)
+    categoricalCodeExtension(output.identity.export_settings.obs_categorical_dtype)
   );
   assert.deepEqual(
     pancreasContinuous.map(field => field.key),
@@ -1673,12 +1727,17 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
     assert.equal(values.length, input.n_cells);
   }
 
-  assert.equal(varManifest._format, 'compact_v1');
+  assert.equal(varManifest._format, 'compact_v2');
   assert.equal(varManifest.n_points, input.n_cells);
   assert.equal(
     varManifest.fields.length,
     provenance.public_gene_contract.n_genes
   );
+  // Pancreas arrives with MGI symbols and nothing beside them, so it carries
+  // exactly one name set.
+  assert.deepEqual(varManifest.gene_name_sets, [
+    { source: 'gene_name', filled_from_index: 0, renamed: [], names: null },
+  ]);
   const geneNames = new Set();
   const genePayloads = readVarFields('pancreas', varManifest);
   for (const { name, minimum, maximum } of genePayloads) {
@@ -1714,28 +1773,13 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
     }
   );
 
-  for (const dimension of [1, 2, 3]) {
-    const relative = `points_${dimension}d.bin.gz`;
-    const points = gunzipSync(
-      await readFile(new URL(relative, directoryUrl))
-    );
-    const payloadContract = output.semantic_payloads[relative];
-    assert.equal(points.length, input.n_cells * dimension * 4);
-    assert.equal(points.length, payloadContract.raw_bytes);
-    assert.equal(sha256(points), payloadContract.raw_sha256);
-    for (let offset = 0; offset < points.length; offset += 4) {
-      const coordinate = points.readFloatLE(offset);
-      assert.ok(
-        Number.isFinite(coordinate) &&
-          coordinate >= -1 &&
-          coordinate <= 1,
-        `pancreas ${dimension}D coordinate at byte ${offset} must be finite in [-1, 1]`
-      );
-    }
-
-    // The one vector field is payload index 0, and its filename is that index
-    // rather than its obsm key: identity.vector_fields is what names the field.
-    const vectorRelative = `vectors/0_${dimension}d.bin.gz`;
+  // The one vector field is payload index 0, and its filenames are that index
+  // and the bound embedding's index rather than any key: identity.vector_fields
+  // is what names the field and the embedding.
+  for (const [embeddingId, vectorRelative] of Object.entries(
+    identity.vector_fields.fields.velocity.files
+  )) {
+    const { dimension } = identity.embeddings.items[embeddingId];
     const vectors = gunzipSync(
       await readFile(new URL(vectorRelative, directoryUrl))
     );
@@ -1751,7 +1795,7 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
         const value = vectors.readFloatLE(offset);
         assert.ok(
           Number.isFinite(value),
-          `pancreas ${dimension}D velocity at byte ${offset} must be finite`
+          `pancreas ${embeddingId} velocity at byte ${offset} must be finite`
         );
         rowIsNonzero ||= value !== 0;
       }
@@ -1760,12 +1804,6 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
     assert.equal(nonzeroRows, vectorContract.nonzero_rows);
   }
 
-  const generation = await generationDigest(directoryUrl);
-  assert.deepEqual(generation, {
-    fileCount: output.expected_file_count,
-    totalBytes: output.expected_total_bytes,
-    sha256: output.generation_sha256,
-  });
   assert.equal(
     await directorySize(directoryUrl),
     output.expected_total_bytes
@@ -1784,105 +1822,169 @@ test('pancreas provenance and artifacts form one exact multidimensional velocity
 });
 
 /**
- * Pancreas is the only generation this repository can rebuild and check. Its
- * source is pinned by digest, its producer by the SHA-256 of every module the
- * export path executes, its environment by a hashed lock file, and the
- * directory it must emit by the digest measured above, so a rebuild that
- * differed anywhere would fail loudly.
- *
- * The other four have none of that. Their notebooks assert no version, hash no
- * input and hash no output, so a rebuild that quietly produced different bytes
- * would satisfy every check they make. `sources/unpinned-generations.json` is
- * not a substitute for the missing pin and does not claim to be: it records
- * what can be read off artifacts already committed here, and this test keeps
- * those readings true. It catches a published generation changing under the
- * repository, and it ties each one to the notebook run its committed output
- * describes. It cannot catch producer drift, which needs the pin these four do
- * not have.
+ * Every published generation is rebuilt by a pinned script: its source is
+ * pinned by size and SHA-256 in `sources/<id>.json`, its environment and the
+ * producer modules the export path executes by `sources/build-environment.json`,
+ * and the directory it must emit by the identity, the payload digests and the
+ * whole-generation digest below, so a rebuild that differed anywhere would
+ * stop rather than publish. The four atlas sources are not redistributable
+ * and are not in this repository; the pins say exactly which bytes rebuild
+ * them. This test keeps every record true of the generation committed beside
+ * it, so a generation that changed without its record changing fails here.
  */
-test('the unpinned generations still match everything recorded about them', async () => {
-  const record = await readJson(UNPINNED_GENERATIONS_URL);
-  const pancreas = await readJson(PANCREAS_PROVENANCE_URL);
-  const unpinnedIds = PUBLISHED_DATASET_IDS.filter(
-    datasetId => datasetId !== pancreas.dataset_id
-  );
-  assert.deepEqual(
-    Object.keys(record.generations).sort(),
-    unpinnedIds,
-    'sources/unpinned-generations.json must cover every published generation '
-      + 'sources/pancreas.json does not pin, and no other: a dataset in '
-      + 'neither file carries no reproducibility record at all, and one in '
-      + 'both is being described as pinned and unpinned at once'
-  );
-  for (const statement of ['recorded', 'not_proved', 'not_recoverable']) {
-    assert.ok(
-      Array.isArray(record[statement]) && record[statement].length > 0,
-      `sources/unpinned-generations.json must keep its '${statement}' `
-        + 'statement, which is what stops the digests below reading as a '
-        + 'reproducibility guarantee they are not'
+for (const datasetId of PUBLISHED_DATASET_IDS) {
+  test(`${datasetId} is exactly the generation its pinned build records`, async () => {
+    const provenanceUrl = new URL(`${datasetId}.json`, SOURCES_URL);
+    const provenance = await readJson(provenanceUrl);
+    const environment = await readJson(BUILD_ENVIRONMENT_URL);
+    const label = `sources/${datasetId}.json`;
+    assert.equal(provenance.schema_version, 3, `${label} schema_version`);
+    assert.equal(provenance.dataset_id, datasetId, `${label} dataset_id`);
+    assertSha256Fields(provenance, label);
+    assert.equal(JSON.stringify(provenance).includes('PENDING'), false);
+    assert.equal(
+      provenance.builder,
+      GENERATION_BUILDERS[datasetId],
+      `${label} must name the builder that produces exports-v3/${datasetId}/`
     );
-  }
+    assert.ok(
+      (await lstat(new URL(`../${provenance.builder}`, import.meta.url))).isFile(),
+      `${label} names ${provenance.builder}, which is not a file`
+    );
+    assert.ok(
+      Number.isInteger(provenance.source?.size_bytes)
+        && provenance.source.size_bytes > 0,
+      `${label} must pin the byte count of the source it rebuilds from`
+    );
+    for (const relative of provenance.recipe ?? []) {
+      assert.ok(
+        (await lstat(new URL(`../${relative}`, import.meta.url))).isFile(),
+        `${label} credits ${relative} as its recipe, which is not a file`
+      );
+    }
 
-  for (const datasetId of unpinnedIds) {
-    const entry = record.generations[datasetId];
     const directoryUrl = new URL(`${datasetId}/`, EXPORTS_URL);
+    const identity = PUBLISHED_IDENTITIES.get(datasetId);
+    const expected = provenance.export_contract.identity;
+    assert.equal(identity.version, 3, `${datasetId} identity version`);
+    assert.equal(
+      expected.cellucid_data_version,
+      environment.cellucid_producer.version,
+      `${label} must record the producer release the environment pins`
+    );
+    for (const key of [
+      'cellucid_data_version',
+      'id',
+      'name',
+      'description',
+      'created_at',
+      'stats',
+      'embeddings',
+      'source',
+      'export_settings',
+      'obs_fields',
+    ]) {
+      assert.deepEqual(
+        identity[key],
+        expected[key],
+        `exports-v3/${datasetId}/dataset_identity.json ${key} is not what ${label} pins`
+      );
+    }
+    assert.deepEqual(
+      identity.vector_fields ?? null,
+      expected.vector_fields,
+      `exports-v3/${datasetId}/dataset_identity.json vector_fields is not what ${label} pins`
+    );
+
+    const varManifest = await readJson(
+      new URL('var_manifest.json', directoryUrl)
+    );
+    const defaults = varManifest.fields.map(entry => entry[1]);
+    assert.equal(
+      sha256(Buffer.from(`${JSON.stringify(defaults)}\n`, 'utf8')),
+      provenance.export_contract.gene_names_json_sha256,
+      `exports-v3/${datasetId}/ publishes other gene names than ${label} pins`
+    );
+    assert.deepEqual(
+      varManifest.gene_name_sets.map(({ names, ...rest }) => rest),
+      provenance.export_contract.gene_name_sets,
+      `exports-v3/${datasetId}/ publishes other gene-name sets than ${label} pins`
+    );
+    assert.deepEqual(
+      varManifest.gene_name_sets.slice(1).map(set =>
+        sha256(
+          Buffer.from(
+            `${JSON.stringify(set.names.map((name, index) => name ?? defaults[index]))}\n`,
+            'utf8'
+          )
+        )
+      ),
+      provenance.export_contract.alternative_gene_name_digests,
+      `exports-v3/${datasetId}/ alternative gene names are not what ${label} pins`
+    );
+
+    for (const [relative, contract] of Object.entries(
+      provenance.export_contract.semantic_payloads
+    )) {
+      const raw = gunzipSync(await readFile(new URL(relative, directoryUrl)));
+      assert.equal(raw.length, contract.raw_bytes, `${datasetId}/${relative} size`);
+      assert.equal(
+        sha256(raw),
+        contract.raw_sha256,
+        `${datasetId}/${relative} is not the payload ${label} pins`
+      );
+    }
+
     assert.deepEqual(
       await generationDigest(directoryUrl),
       {
-        fileCount: entry.observed.file_count,
-        totalBytes: entry.observed.total_bytes,
-        sha256: entry.observed.generation_sha256,
+        fileCount: provenance.export_contract.expected_file_count,
+        totalBytes: provenance.export_contract.expected_total_bytes,
+        sha256: provenance.export_contract.generation_sha256,
       },
-      `exports/${datasetId}/ no longer matches the bytes recorded for it. `
-        + 'Either the generation was republished, in which case re-record it '
-        + 'and say what produced the new one, or it changed without anyone '
-        + 'republishing it, which is corruption'
+      `exports-v3/${datasetId}/ no longer matches the generation ${label} pins. `
+        + `Rebuild it with ${provenance.builder}, or, if the pins themselves `
+        + 'must move, repin them deliberately and say what changed'
     );
-    assert.equal(
-      entry.producer.cellucid_data_version,
-      PUBLISHED_IDENTITIES.get(datasetId).cellucid_data_version,
-      `the producer version recorded for ${datasetId} is not the one `
-        + `exports/${datasetId}/dataset_identity.json states, so the record is `
-        + 'attributing the generation to a version that did not write it'
-    );
-    assert.equal(
-      entry.observed.file_count,
-      entry.notebook_reported_file_count,
-      `exports/${datasetId}/ holds a different number of files than the `
-        + 'committed output of the notebook this record attributes it to, so '
-        + 'the two are no longer describing one run'
-    );
-    for (const relative of entry.notebooks) {
-      assert.ok(
-        (await lstat(new URL(`../${relative}`, import.meta.url))).isFile(),
-        `sources/unpinned-generations.json names ${relative}, which is not a `
-          + 'file, so the recipe it credits for this generation is gone'
-      );
-    }
-  }
+  });
+}
+
+test('every catalogued generation has exactly one pinned build record', async () => {
+  const records = (await readdir(SOURCES_URL))
+    .filter(name => name.endsWith('.json') && name !== 'build-environment.json')
+    .map(name => name.slice(0, -'.json'.length))
+    .sort();
+  assert.deepEqual(
+    records,
+    [...PUBLISHED_DATASET_IDS],
+    'sources/ must hold one <id>.json build record per published generation '
+      + 'and no other: a generation without one has no reproducibility record, '
+      + 'and a record without a generation pins nothing'
+  );
+  assert.deepEqual(
+    Object.keys(GENERATION_BUILDERS).sort(),
+    [...PUBLISHED_DATASET_IDS]
+  );
 });
 
 /**
- * The Pancreas builder attributes the published generation to one exact
- * producer source tree. That claim was carried as an aggregate digest plus a
- * short list of interesting files, and nothing measured either against the
- * producer repository: the list went on naming `src/cellucid/prepare_data.py`
- * for three commits after that file became a package directory, and the only
- * thing that ever noticed was a build nobody runs between releases. The
- * manifest is now one explicit path list, and these two tests read it -- the
- * first everywhere, the second wherever the producer repository is checked out
- * beside this one -- so a pinned path that stops resolving fails in the suite
- * a maintainer already runs.
+ * Every builder attributes its generation to one exact producer source tree.
+ * The manifest is one explicit path list, and these two tests read it -- the
+ * first everywhere, the second wherever the producer repository is checked
+ * out beside this one, or wherever `CELLUCID_PYTHON_REPOSITORY` points -- so a
+ * pinned path that stops resolving fails in the suite a maintainer already
+ * runs.
  */
 const PRODUCER_MODULE_PATH = /^src\/cellucid\/(?:[A-Za-z0-9_]+\/)*[A-Za-z0-9_]+\.py$/;
-const PRODUCER_REPOSITORY_URL = new URL(
-  '../../cellucid-python/',
-  import.meta.url
-);
+const PRODUCER_REPOSITORY_URL = process.env.CELLUCID_PYTHON_REPOSITORY
+  ? new URL(
+    `file://${path.resolve(process.env.CELLUCID_PYTHON_REPOSITORY)}/`
+  )
+  : new URL('../../cellucid-python/', import.meta.url);
 
 test('the pinned producer manifest agrees with the files it enumerates', async () => {
-  const provenance = await readJson(PANCREAS_PROVENANCE_URL);
-  const producer = provenance.build_environment.cellucid_producer;
+  const environment = await readJson(BUILD_ENVIRONMENT_URL);
+  const producer = environment.cellucid_producer;
   const sourceFiles = producer.source_files;
 
   assert.ok(
@@ -1941,13 +2043,14 @@ test(
     if (producerRoot === null || !producerRoot.isDirectory()) {
       t.skip(
         'the cellucid-python producer repository is not checked out beside '
-          + 'this one, so the pinned paths cannot be read here'
+          + 'this one and CELLUCID_PYTHON_REPOSITORY names none, so the pinned '
+          + 'paths cannot be read here'
       );
       return;
     }
 
-    const provenance = await readJson(PANCREAS_PROVENANCE_URL);
-    const producer = provenance.build_environment.cellucid_producer;
+    const environment = await readJson(BUILD_ENVIRONMENT_URL);
+    const producer = environment.cellucid_producer;
     const missing = [];
     const differing = [];
     for (const entry of producer.source_files) {
@@ -1971,17 +2074,91 @@ test(
     assert.deepEqual(
       missing,
       [],
-      'sources/pancreas.json pins producer paths the producer repository no '
-        + 'longer has, so the Pancreas generation is attributed to code that '
-        + 'cannot be read'
+      'sources/build-environment.json pins producer paths the producer '
+        + 'repository no longer has, so every published generation is '
+        + 'attributed to code that cannot be read'
     );
     assert.deepEqual(
       differing,
       [],
-      'the pinned producer files changed, so the published Pancreas generation '
-        + 'was not produced by the code sources/pancreas.json records; rebuild '
-        + 'the generation or repin the manifest deliberately'
+      'the pinned producer files changed, so the published generations were '
+        + 'not produced by the code sources/build-environment.json records; '
+        + 'rebuild them or repin the manifest deliberately'
     );
+  }
+);
+
+/**
+ * The documentation site lists every sample's upstream study in one table, and
+ * a reader cites from it. It named the Suo study's Visium accession and the
+ * adult-heart study for the fetal Kanemaru heart, copied from the same records
+ * this repository published, because nothing compared the two. This test reads
+ * the table from the sibling producer repository, which holds the
+ * documentation, and requires each row to link exactly the upstream study that
+ * `sources/<id>.json` records: `upstream_url` for the four atlases, which is
+ * also the `source.url` their generations publish, and `geo_url` for Pancreas,
+ * whose `source.url` is the commit-pinned file rather than the study.
+ */
+const PROVENANCE_DOCS_PATH =
+  'docs/user_guide/web_app/b_data_loading/12_sample_dataset_provenance.md';
+
+test(
+  'the documented upstream study of every sample is the one its generation declares',
+  async (t) => {
+    let page;
+    try {
+      page = await readFile(
+        new URL(PROVENANCE_DOCS_PATH, PRODUCER_REPOSITORY_URL),
+        'utf8'
+      );
+    } catch {
+      t.skip(
+        'the cellucid-python repository, which holds the documentation, is not '
+          + 'checked out beside this one and CELLUCID_PYTHON_REPOSITORY names '
+          + 'none'
+      );
+      return;
+    }
+    for (const datasetId of EXPECTED_DATASET_IDS) {
+      const identity = await readJson(
+        new URL(`${datasetId}/dataset_identity.json`, EXPORTS_URL)
+      );
+      const provenance = await readJson(new URL(`${datasetId}.json`, SOURCES_URL));
+      const studyUrl = provenance.source.upstream_url ?? provenance.source.geo_url;
+      assert.equal(
+        typeof studyUrl,
+        'string',
+        `sources/${datasetId}.json must record the upstream study's URL`
+      );
+      if (provenance.source.upstream_url !== undefined) {
+        assert.equal(
+          provenance.source.upstream_url,
+          identity.source.url,
+          `${datasetId}: the generation must publish the upstream study its `
+            + 'build record names'
+        );
+      }
+      const rows = page
+        .split('\n')
+        .filter((line) => line.startsWith('|') && line.includes(`| \`${datasetId}\` |`));
+      assert.equal(
+        rows.length,
+        1,
+        `${PROVENANCE_DOCS_PATH} must list ${datasetId} in exactly one catalog row`
+      );
+      const studyCell = rows[0].split('|').at(-2).trim();
+      const link = studyCell.match(/^\[[^\]]+\]\(([^)]+)\)/);
+      assert.ok(
+        link,
+        `${datasetId}: the upstream-study cell must open with a Markdown link`
+      );
+      assert.equal(
+        link[1],
+        studyUrl,
+        `${datasetId}: the documented upstream study must be the one `
+          + `sources/${datasetId}.json records`
+      );
+    }
   }
 );
 
@@ -1998,14 +2175,13 @@ for (const datasetId of ALL_DATASET_IDS) {
       );
       const declaredDtype =
         identity.export_settings?.obs_categorical_dtype;
-      assert.ok(
-        declaredDtype === 'uint8' || declaredDtype === 'uint16',
-        `${datasetId} must declare exactly uint8 or uint16 categorical codes`
-      );
-      const bytesPerCode = declaredDtype === 'uint8' ? 1 : 2;
-      const missingCode = declaredDtype === 'uint8' ? 255 : 65535;
-      const extension = categoricalCodeExtension(declaredDtype);
-      const otherExtension = declaredDtype === 'uint8' ? 'u16' : 'u8';
+      const width = categoricalCodeWidth(declaredDtype, datasetId);
+      const bytesPerCode = width.bytes;
+      const missingCode = width.missing;
+      const extension = width.extension;
+      const otherExtensions = Object.values(CATEGORICAL_CODE_WIDTHS)
+        .map(other => other.extension)
+        .filter(other => other !== extension);
 
       assert.ok(
         Array.isArray(manifest._categoricalFields),
@@ -2067,19 +2243,21 @@ for (const datasetId of ALL_DATASET_IDS) {
           identity.stats.n_cells * bytesPerCode,
           `${datasetId}/${key} gzip size must match one code per cell`
         );
-        await assert.rejects(
-          readFile(
-            new URL(
-              field.codesPath.replace(
-                `.codes.${extension}.`,
-                `.codes.${otherExtension}.`
-              ),
-              directoryUrl
-            )
-          ),
-          { code: 'ENOENT' },
-          `${datasetId}/${key} must not retain an alternate code-width payload`
-        );
+        for (const otherExtension of otherExtensions) {
+          await assert.rejects(
+            readFile(
+              new URL(
+                field.codesPath.replace(
+                  `.codes.${extension}.`,
+                  `.codes.${otherExtension}.`
+                ),
+                directoryUrl
+              )
+            ),
+            { code: 'ENOENT' },
+            `${datasetId}/${key} must not retain an alternate code-width payload`
+          );
+        }
 
         const codes = gunzipSync(payload);
         assert.equal(
@@ -2090,10 +2268,7 @@ for (const datasetId of ALL_DATASET_IDS) {
         const usedCodes = new Uint8Array(categories.length);
         let missingCells = 0;
         for (let cell = 0; cell < identity.stats.n_cells; cell++) {
-          const code =
-            bytesPerCode === 1
-              ? codes[cell]
-              : codes.readUInt16LE(cell * 2);
+          const code = width.read(codes, cell);
           if (code === missingCode) {
             missingCells += 1;
             continue;
@@ -2249,34 +2424,85 @@ for (const datasetId of PUBLISHED_DATASET_IDS) {
       const directoryUrl = new URL(`${datasetId}/`, EXPORTS_URL);
       const identity = PUBLISHED_IDENTITIES.get(datasetId);
       const embeddings = identity.embeddings;
-      assert.ok(
-        Array.isArray(embeddings.available_dimensions) &&
-          embeddings.available_dimensions.length > 0,
-        `${datasetId} must advertise at least one embedding dimension`
+      assertExactKeys(
+        embeddings,
+        EMBEDDINGS_KEYS,
+        [],
+        `${datasetId}/dataset_identity.json embeddings`
       );
-      assert.ok(
-        embeddings.available_dimensions.includes(
-          embeddings.default_dimension
-        ),
-        `${datasetId} default_dimension must be one advertised dimension`
+      const items = Object.entries(embeddings.items);
+      assert.ok(items.length > 0, `${datasetId} must publish at least one embedding`);
+
+      // Items are ordered by dimension, then id in code-point order, and an
+      // item's position in that order is the index its payload is named by.
+      const ordered = [...items].sort(([leftId, left], [rightId, right]) =>
+        left.dimension - right.dimension
+        || (leftId < rightId ? -1 : leftId > rightId ? 1 : 0)
       );
       assert.deepEqual(
-        Object.keys(embeddings.files).sort(),
-        embeddings.available_dimensions
-          .map(dimension => `${dimension}d`)
-          .sort(),
-        `${datasetId} must publish one point payload per advertised dimension`
+        items.map(([id]) => id),
+        ordered.map(([id]) => id),
+        `${datasetId} embeddings.items must be ordered by dimension, then id`
+      );
+      const suffix = identity.export_settings?.compression === null ? '' : '.gz';
+      const dimensions = new Set();
+      for (const [index, [id, item]] of items.entries()) {
+        const label = `${datasetId}/dataset_identity.json embeddings.items.${id}`;
+        assertDisplayText(id, `${label} id`);
+        assertExactKeys(item, EMBEDDING_ITEM_KEYS, [], label);
+        assertDisplayText(item.label, `${label}.label`);
+        assert.ok(
+          [1, 2, 3].includes(item.dimension),
+          `${label}.dimension must be 1, 2, or 3`
+        );
+        dimensions.add(item.dimension);
+        assert.equal(
+          item.file,
+          `embeddings/${index}_${item.dimension}d.bin${suffix}`,
+          `${label}.file must be exactly the producer path for item ${index}`
+        );
+        assertExactKeys(item.source, ['columns', 'key'], [], `${label}.source`);
+        assert.ok(
+          item.source.key === null || typeof item.source.key === 'string',
+          `${label}.source.key must be a string or null`
+        );
+        assert.ok(
+          Array.isArray(item.source.columns)
+            && item.source.columns.length === item.dimension
+            && item.source.columns.every(column => Number.isInteger(column) && column >= 0)
+            && new Set(item.source.columns).size === item.dimension,
+          `${label}.source.columns must name ${item.dimension} distinct 0-based columns`
+        );
+      }
+      const dimensionKeys = [...dimensions].sort().map(dimension => `${dimension}d`);
+      assert.deepEqual(
+        Object.keys(embeddings.defaults),
+        dimensionKeys,
+        `${datasetId} embeddings.defaults must name exactly one default per `
+          + 'published dimension, ascending'
+      );
+      for (const [key, id] of Object.entries(embeddings.defaults)) {
+        assert.equal(
+          embeddings.items[id]?.dimension,
+          Number(key[0]),
+          `${datasetId} embeddings.defaults.${key} must name a ${key} item`
+        );
+      }
+      assert.equal(
+        embeddings.default_dimension,
+        Math.max(...dimensions),
+        `${datasetId} default_dimension must be the highest published dimension`
       );
 
-      for (const dimension of embeddings.available_dimensions) {
-        const relative = embeddings.files[`${dimension}d`];
+      for (const [id, item] of items) {
+        const { dimension, file: relative } = item;
         const points = gunzipSync(
           await readFile(new URL(relative, directoryUrl))
         );
         assert.equal(
           points.length,
           identity.stats.n_cells * dimension * 4,
-          `${datasetId}/${relative} must contain one Float32 per axis per cell`
+          `${datasetId}/${relative} (${id}) must contain one Float32 per axis per cell`
         );
         const lowest = new Array(dimension).fill(Infinity);
         const highest = new Array(dimension).fill(-Infinity);
@@ -2300,6 +2526,54 @@ for (const datasetId of PUBLISHED_DATASET_IDS) {
               + `coordinate ${lowest[axis]}, so the cell count matches while `
               + 'the embedding shows nothing'
           );
+        }
+      }
+    }
+  );
+
+  test(
+    `${datasetId} carries one centroid set per published embedding`,
+    async () => {
+      const directoryUrl = new URL(`${datasetId}/`, EXPORTS_URL);
+      const identity = PUBLISHED_IDENTITIES.get(datasetId);
+      const manifest = await readJson(
+        new URL('obs_manifest.json', directoryUrl)
+      );
+      assert.equal(manifest._format, 'compact_v2');
+      for (const field of readObsCategoricalFields(
+        datasetId,
+        manifest,
+        categoricalCodeExtension(identity.export_settings?.obs_categorical_dtype)
+      )) {
+        assert.ok(
+          isPlainRecord(field.centroids),
+          `${datasetId}/${field.key} must publish centroids keyed by embedding id`
+        );
+        for (const [id, centroids] of Object.entries(field.centroids)) {
+          const item = identity.embeddings.items[id];
+          assert.ok(
+            item,
+            `${datasetId}/${field.key} carries centroids for '${id}', which the `
+              + 'generation does not publish'
+          );
+          for (const centroid of centroids) {
+            assertExactKeys(
+              centroid,
+              ['category', 'n_points', 'position'],
+              [],
+              `${datasetId}/${field.key} centroid on ${id}`
+            );
+            assert.ok(
+              field.categories.includes(centroid.category),
+              `${datasetId}/${field.key} centroid names an undeclared category`
+            );
+            assert.equal(
+              centroid.position.length,
+              item.dimension,
+              `${datasetId}/${field.key} centroid on ${id} must have one `
+                + 'coordinate per axis'
+            );
+          }
         }
       }
     }
@@ -2675,14 +2949,38 @@ for (const datasetId of PUBLISHED_DATASET_IDS) {
       assert.deepEqual(
         fields.filter(field => field.index === null).map(field => field.label),
         [],
-        `${datasetId} declares vector payloads that do not resolve to one `
-          + 'integer index shared by every dimension of the field'
+        `${datasetId} declares vector payloads that are not exactly the `
+          + 'producer path vectors/{field index}_{embedding index} for one '
+          + 'field index shared by every embedding the field is bound to'
       );
       assert.deepEqual(
-        fields.map(field => field.index).sort((left, right) => left - right),
+        fields.map(field => field.index),
         Array.from({ length: fields.length }, (_, index) => index),
         `${datasetId}/vectors does not give its ${fields.length} vector `
-          + 'fields the indices 0..N-1 exactly once'
+          + 'fields the indices 0..N-1 exactly once, in field order'
+      );
+      const itemIds = Object.keys(identity.embeddings.items);
+      for (const field of fields) {
+        assert.deepEqual(
+          Object.keys(field.field.files),
+          itemIds.filter(id => Object.hasOwn(field.field.files, id)),
+          `${datasetId} vector field '${field.label}' must list its bound `
+            + 'embeddings in item order'
+        );
+        assert.equal(
+          field.field.label,
+          field.label,
+          `${datasetId} vector field '${field.label}' label must equal its id`
+        );
+      }
+
+      const embeddingFiles = Object.values(identity.embeddings.items).map(
+        item => item.file
+      );
+      assert.equal(
+        new Set(embeddingFiles).size,
+        embeddingFiles.length,
+        `${datasetId} names one embedding payload twice`
       );
     }
   );
@@ -2692,7 +2990,14 @@ for (const datasetId of PUBLISHED_DATASET_IDS) {
     async () => {
       const directoryUrl = new URL(`${datasetId}/`, EXPORTS_URL);
       const identity = PUBLISHED_IDENTITIES.get(datasetId);
-      const declared = { var: [], obs: [], vectors: [] };
+      const declared = {
+        embeddings: Object.values(identity.embeddings.items).map(
+          item => item.file
+        ),
+        var: [],
+        obs: [],
+        vectors: [],
+      };
 
       const rootFiles = new Set(
         (await readdir(directoryUrl, { withFileTypes: true }))
@@ -2926,6 +3231,37 @@ for (const datasetId of PUBLISHED_DATASET_IDS) {
         ].map(field => field.key),
       },
     ];
+    // Every alternative gene-name set is display text too: a reader switches
+    // to it and then types those names into the same gene search.
+    const defaultNames = readVarFields(datasetId, varManifest).map(field => field.name);
+    assert.equal(
+      varManifest.gene_name_sets[0].names,
+      null,
+      `${datasetId} default gene-name set must carry its names in fields`
+    );
+    for (const [position, set] of varManifest.gene_name_sets.entries()) {
+      assertExactKeys(
+        set,
+        ['filled_from_index', 'names', 'renamed', 'source'],
+        [],
+        `${datasetId}/var_manifest.json gene_name_sets[${position}]`
+      );
+      if (position === 0) continue;
+      assert.equal(set.names.length, defaultNames.length);
+      set.names.forEach((name, index) => {
+        assert.notEqual(
+          name,
+          defaultNames[index],
+          `${datasetId} gene-name set '${set.source}' repeats the default name `
+            + `'${name}' instead of null`
+        );
+      });
+      axes.push({
+        axis: 'var',
+        label: `gene name in set '${set.source}'`,
+        names: set.names.map((name, index) => name ?? defaultNames[index]),
+      });
+    }
     for (const { axis, label, names } of axes) {
       const seen = new Set();
       for (const name of names) {

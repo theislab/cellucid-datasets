@@ -1,6 +1,7 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "dataset_id": "pancreas",
+  "builder": "scripts/build_pancreas.py",
   "source": {
     "repository": "https://github.com/theislab/scvelo_notebooks",
     "commit": "f6cad69fd509be44c8453205309f4c3c3c37ba34",
@@ -23,7 +24,7 @@
       "ordered cell and gene identifiers",
       "all four obs columns and their category order",
       "the highly_variable_genes var column",
-      "X_pca latent coordinates",
+      "X_pca latent coordinates, whose first two components are also published as the PCA view",
       "X_umap two-dimensional coordinates",
       "the weighted source connectivity graph"
     ],
@@ -32,136 +33,9 @@
       "the independently optimized one-dimensional UMAP",
       "the independently optimized three-dimensional UMAP",
       "stochastic velocity parameters and graph",
-      "velocity projections for the exact 1D, source-owned 2D, and derived 3D embeddings",
+      "velocity projections bound to the derived 1D, source-owned 2D, and derived 3D UMAPs",
       "the public cell_type convenience alias, exactly equal to the source-owned clusters categories and codes"
     ]
-  },
-  "build_environment": {
-    "requirements_lock": "requirements-pancreas.lock",
-    "requirements_lock_sha256": "512723c0ad32bb520d1581abdf97ff1ac6c61a85b5eccefdeb539d2062c8ec10",
-    "python_version": "3.12.13",
-    "implementation": "CPython",
-    "platform_system": "Darwin",
-    "platform_machine": "arm64",
-    "zlib_runtime_version": "1.2.12",
-    "blas": {
-      "internal_api": "openblas",
-      "version": "0.3.23.dev",
-      "architecture": "armv8",
-      "threading_layer": "pthreads"
-    },
-    "thread_environment": {
-      "OMP_NUM_THREADS": "1",
-      "OPENBLAS_NUM_THREADS": "1",
-      "MKL_NUM_THREADS": "1",
-      "VECLIB_MAXIMUM_THREADS": "1",
-      "NUMBA_NUM_THREADS": "1"
-    },
-    "python_hash_seed": "0",
-    "root_random_seed": 0,
-    "cellucid_producer": {
-      "repository": "https://github.com/theislab/cellucid-python",
-      "version": "0.9.1",
-      "source_tree_manifest_sha256": "977d07007990a34da3bb5534cc78e8e5a0c5b13ff4211def6630d79fe25a6cf7",
-      "manifest_definition": "SHA-256 of the `shasum -a 256` manifest over exactly the source_files paths below, in the listed LC_ALL=C order, using repository-relative POSIX paths.",
-      "manifest_scope": "Exactly the producer modules the export path executes: the cellucid entries sys.modules holds once cellucid.prepare_data is imported. Modules outside that set - the Jupyter viewer, the HTTP server, session bundles, the web cache, the AnnData adapter, the command line - cannot reach the bytes prepare() writes, so pinning them reports a difference where the export has none. The builder recomputes the executed set on every run and refuses to build when the export path reaches a module this list omits, so the list cannot silently stop covering the producer. Every path is named rather than matched by a directory pattern, so a producer file that is renamed or removed fails by name. The interpreter, the exact installed distribution set and the producer release are pinned separately by python_version, requirements_lock_sha256 and version.",
-      "source_files": [
-        {
-          "path": "src/cellucid/__init__.py",
-          "sha256": "a703592ba0ad4bf6a6e0179971811e603025392cbf6ef9ffbf1fd4ec03744d9e"
-        },
-        {
-          "path": "src/cellucid/_byte_order.py",
-          "sha256": "e0d221adbdf98f1507467474f938db00c15dff8473f57c9c4059499237bc8c1f"
-        },
-        {
-          "path": "src/cellucid/_compression.py",
-          "sha256": "017d8250dab7e69cdf70f6d5b3ff764d91292151814bcdffec01ba28dec28e39"
-        },
-        {
-          "path": "src/cellucid/_console.py",
-          "sha256": "9fc3c4749fdbd37ac05b528fdb5e9a227aa9cc41723d3f591b19f35b0550ca50"
-        },
-        {
-          "path": "src/cellucid/_contracts.py",
-          "sha256": "a077a526138f1b366f167b83810cbaeafb0f846dcbcb20c0256b8bd4d6bccef2"
-        },
-        {
-          "path": "src/cellucid/connectivity_contract.py",
-          "sha256": "30d596e70821b945f575752ea14fc623d9d57aba6118c3c2a923a3f5d25ed83e"
-        },
-        {
-          "path": "src/cellucid/prepare_data/__init__.py",
-          "sha256": "45087eb68845f13256c3676838f7c91b421016b997567acae90a47b10bf0f152"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_arrays.py",
-          "sha256": "da960a549e3b5f46d82f557f7a8455c2f35b1b35273a9bf254fbbf64611312d4"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_binary_io.py",
-          "sha256": "c9a9df2d2f6c8ef0591d48e26c878faedc6b8c9fda4ba18ca0924eccca5a96f7"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_catalog.py",
-          "sha256": "a8f20835d534002a28992475e10447be7c721c5dfb6d26c2bc3b4739ef1220b6"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_categories.py",
-          "sha256": "61c0ae909bb0a6cefcea8b1493190195fcc5b4d97a80446eb254a66ed3d27c8d"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_centroids.py",
-          "sha256": "2020f280e8ce66e5ae57d3ae33c187ae77c0aee9fda9c2cc79607907a054b9ed"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_export.py",
-          "sha256": "8f46aec8a64853a801d6984946366ce161c134f764ab2842441e77fe59e62323"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_filesystem.py",
-          "sha256": "b953cc142714562709bdb4710c18d022e93a5894b063286d56640c240a688d37"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_generation.py",
-          "sha256": "2b1c5594a23b449ba67fcd5107140094fa700fdf1c672906ade4fc1f6a4efd86"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_locking.py",
-          "sha256": "aee27887d70c9ae727cc82ac9d4245cf43c40187a2b3fe91fdd7ab53246f7d46"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_manifest.py",
-          "sha256": "62478705a0b73f21ac7d40140cae08862bf593202154f4c223692f1b30032c6c"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_quantization.py",
-          "sha256": "1f301ff3d5f6610d90a10676cdc1bcf91910d3798b60b3fae015bada1b7e2e23"
-        },
-        {
-          "path": "src/cellucid/prepare_data/_transaction.py",
-          "sha256": "b7952c15049dc2b4dc7cd829e5e29693c063b038787d4438128db16807ad603a"
-        },
-        {
-          "path": "src/cellucid/vector_fields.py",
-          "sha256": "2e28c20f8dd9de7b26e07f06d8cf9357e6dfe395ebff8f8f8d4716dd789ea548"
-        }
-      ]
-    },
-    "packages": {
-      "anndata": "0.12.19",
-      "h5py": "3.16.0",
-      "numba": "0.66.0",
-      "numpy": "1.26.4",
-      "pandas": "2.3.3",
-      "pynndescent": "0.6.0",
-      "scanpy": "1.11.5",
-      "scikit-learn": "1.9.0",
-      "scipy": "1.16.3",
-      "scvelo": "0.3.4",
-      "threadpoolctl": "3.6.0",
-      "umap-learn": "0.5.12"
-    }
   },
   "warning_contract": {
     "all_unlisted_warnings_are_errors": true,
@@ -471,25 +345,46 @@
     }
   },
   "export_contract": {
-    "cellucid_data_version": "0.9.1",
-    "dataset_name": "Pancreatic endocrinogenesis (scVelo)",
-    "dataset_description": "Mouse pancreatic epithelial and Ngn3-Venus fusion cells at embryonic day 15.5, spanning endocrine progenitors and differentiated endocrine fates.",
-    "source_name": "scVelo pancreas (GSE132188 E15.5)",
-    "artifact_created_at": "2026-07-27T11:46:37Z",
-    "compression": 6,
-    "var_quantization": 8,
-    "obs_continuous_quantization": 8,
-    "obs_categorical_dtype": "uint8",
+    "embeddings": {
+      "X_pca": {
+        "array": "source_pca",
+        "label": "PCA",
+        "source_key": "X_pca",
+        "columns": [
+          0,
+          1
+        ]
+      },
+      "X_umap": {
+        "array": "source_umap_2d",
+        "label": "UMAP",
+        "source_key": "X_umap",
+        "columns": null
+      },
+      "X_umap_1d": {
+        "array": "derived_umap_1d",
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      },
+      "X_umap_3d": {
+        "array": "derived_umap_3d",
+        "label": "UMAP",
+        "source_key": null,
+        "columns": null
+      }
+    },
+    "embedding_defaults": {
+      "2d": "X_umap"
+    },
+    "vector_field": "velocity",
+    "vector_field_bindings": {
+      "X_umap_1d": "velocity_umap_1d",
+      "X_umap": "velocity_umap_2d",
+      "X_umap_3d": "velocity_umap_3d"
+    },
     "centroid_outlier_quantile": 0.95,
     "centroid_min_points": 10,
-    "available_dimensions": [
-      1,
-      2,
-      3
-    ],
-    "default_dimension": 3,
-    "vector_field": "velocity_umap",
-    "vector_field_default_dimension": 3,
     "derived_obs_fields": {
       "cell_type": {
         "ownership": "derived convenience alias",
@@ -498,37 +393,173 @@
         "codes_i32_sha256": "a03b4445359a4c0cec466b0734def4f63e9a6011baaeccc9cb8ae7265b131f99"
       }
     },
+    "identity": {
+      "cellucid_data_version": "0.9.3",
+      "id": "pancreas",
+      "name": "Pancreatic endocrinogenesis (scVelo)",
+      "description": "Mouse pancreatic epithelial and Ngn3-Venus fusion cells at embryonic day 15.5, spanning endocrine progenitors and differentiated endocrine fates.",
+      "created_at": "2026-10-18T00:00:00Z",
+      "stats": {
+        "n_cells": 3696,
+        "n_genes": 3753,
+        "n_obs_fields": 5,
+        "n_categorical_fields": 3,
+        "n_continuous_fields": 2,
+        "has_connectivity": true,
+        "n_edges": 33476
+      },
+      "embeddings": {
+        "default_dimension": 3,
+        "defaults": {
+          "1d": "X_umap_1d",
+          "2d": "X_umap",
+          "3d": "X_umap_3d"
+        },
+        "items": {
+          "X_umap_1d": {
+            "label": "UMAP",
+            "dimension": 1,
+            "file": "embeddings/0_1d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0
+              ]
+            }
+          },
+          "X_pca": {
+            "label": "PCA",
+            "dimension": 2,
+            "file": "embeddings/1_2d.bin.gz",
+            "source": {
+              "key": "X_pca",
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap": {
+            "label": "UMAP",
+            "dimension": 2,
+            "file": "embeddings/2_2d.bin.gz",
+            "source": {
+              "key": "X_umap",
+              "columns": [
+                0,
+                1
+              ]
+            }
+          },
+          "X_umap_3d": {
+            "label": "UMAP",
+            "dimension": 3,
+            "file": "embeddings/3_3d.bin.gz",
+            "source": {
+              "key": null,
+              "columns": [
+                0,
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "vector_fields": {
+        "default_field": "velocity",
+        "fields": {
+          "velocity": {
+            "label": "velocity",
+            "files": {
+              "X_umap_1d": "vectors/0_0.bin.gz",
+              "X_umap": "vectors/0_2.bin.gz",
+              "X_umap_3d": "vectors/0_3.bin.gz"
+            }
+          }
+        }
+      },
+      "source": {
+        "name": "scVelo pancreas (GSE132188 E15.5)",
+        "url": "https://raw.githubusercontent.com/theislab/scvelo_notebooks/f6cad69fd509be44c8453205309f4c3c3c37ba34/data/Pancreas/endocrinogenesis_day15.h5ad",
+        "citation": "Bastidas-Ponce A, Tritschler S, Dony L, Scheibner K, Tarquis-Medina M, Salinno C, Schirge S, Burtscher I, Böttcher A, Theis FJ, Lickert H, Bakhti M. Comprehensive single cell mRNA profiling reveals a detailed roadmap for pancreatic endocrinogenesis. Development. 2019;146(12):dev173849. doi:10.1242/dev.173849."
+      },
+      "export_settings": {
+        "compression": 6,
+        "var_quantization": 8,
+        "obs_continuous_quantization": 8,
+        "obs_categorical_dtype": "uint8"
+      },
+      "obs_fields": [
+        {
+          "key": "S_score",
+          "kind": "continuous"
+        },
+        {
+          "key": "G2M_score",
+          "kind": "continuous"
+        },
+        {
+          "key": "clusters_coarse",
+          "kind": "category",
+          "n_categories": 5
+        },
+        {
+          "key": "clusters",
+          "kind": "category",
+          "n_categories": 8
+        },
+        {
+          "key": "cell_type",
+          "kind": "category",
+          "n_categories": 8
+        }
+      ]
+    },
+    "gene_names_json_sha256": "9c3d31446e03975ec8d386b8d952e3415a7d27fbd8e58c0c57651493903a4de7",
+    "gene_name_sets": [
+      {
+        "source": "gene_name",
+        "filled_from_index": 0,
+        "renamed": []
+      }
+    ],
+    "alternative_gene_name_digests": [],
     "semantic_payloads": {
-      "points_1d.bin.gz": {
+      "embeddings/0_1d.bin.gz": {
         "raw_bytes": 14784,
         "raw_sha256": "7800daf21b1c8dd181b9173334e4a9a117a7de6ed4d82c4460bc794d9a39cf4d"
       },
-      "points_2d.bin.gz": {
+      "embeddings/1_2d.bin.gz": {
+        "raw_bytes": 29568,
+        "raw_sha256": "2e0c1e1a2775b4b45b814c15f7d6fdaaccd92b6963ad1baa7848f93386b171f7"
+      },
+      "embeddings/2_2d.bin.gz": {
         "raw_bytes": 29568,
         "raw_sha256": "d7c72cf2437f0e185ce720b50a976b2575d9a04f72ebdd1f5c9eb65c8636ce1b"
       },
-      "points_3d.bin.gz": {
+      "embeddings/3_3d.bin.gz": {
         "raw_bytes": 44352,
         "raw_sha256": "f67c983c7332b215280cea009168be3a850360f07e62a8a06b66f78205986a8c"
       },
-      "vectors/0_1d.bin.gz": {
+      "vectors/0_0.bin.gz": {
         "raw_bytes": 14784,
         "raw_sha256": "877146aaf6014a2a2d059e5095bc6bc7faf64fcf44177a325b937522229a0f44",
         "nonzero_rows": 3694
       },
-      "vectors/0_2d.bin.gz": {
+      "vectors/0_2.bin.gz": {
         "raw_bytes": 29568,
         "raw_sha256": "e81f788d7a51adc1ce50a3a2198a001b3c973f0e2ab94eeb18ff5bc0527a554d",
         "nonzero_rows": 3696
       },
-      "vectors/0_3d.bin.gz": {
+      "vectors/0_3.bin.gz": {
         "raw_bytes": 44352,
         "raw_sha256": "a0f30a0c44b1e2b6675589c09030b32e3d6932a636668ed366fd26ea0a26e199",
         "nonzero_rows": 3696
       }
     },
-    "expected_file_count": 3774,
-    "expected_total_bytes": 2498563,
-    "generation_sha256": "89c6b684c872475a2ed34acc000222908d79ac276dd711e3b31549eb1bab59d2"
+    "expected_file_count": 3775,
+    "expected_total_bytes": 2528678,
+    "generation_sha256": "44df8b9eb4f087c0a230043225637bbdca5495cf403049b030d3cc9504332638"
   }
 }
