@@ -2,7 +2,7 @@ name: Dataset contracts
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main"]
   pull_request:
   workflow_dispatch:
 
@@ -42,7 +42,7 @@ jobs:
     # builders publish through, is POSIX-only by construction: it fsyncs the
     # parent directory through os.open(directory, O_RDONLY), which Windows
     # refuses, and it checks filesystem ownership through os.getuid(). Its
-    # suite is therefore run on the two platforms a generation can actually be
+    # suite is therefore run on the two platforms a store can actually be
     # published from. The module imports nothing outside the standard library
     # at import time -- every numerical import is function-local, and the suite
     # exercises only the stage/validate/publish helpers -- so this job installs
@@ -65,7 +65,31 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Validate the staged publisher preserves the prior generation
+      - name: Validate the staged publisher preserves the prior store
         run: >-
           python -m unittest
           tests/test_pinned_build_publish.py
+
+  stores:
+    # Every published store opened the way a user opens it, with anndata, at
+    # the versions requirements-build.lock pins for the builds that wrote them.
+    name: AnnData stores / Python 3.12
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the exact source
+        uses: actions/checkout@v7
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the AnnData reader
+        run: python -m pip install anndata==0.12.19 zarr==3.1.4 numcodecs==0.16.3
+
+      - name: Open every published store with anndata
+        run: >-
+          python -m unittest
+          tests/test_anndata_stores.py

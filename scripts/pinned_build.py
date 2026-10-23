@@ -1,4 +1,4 @@
-"""The pinned build every published sample generation is produced by.
+"""The pinned build every published sample dataset is produced by.
 
 ``build_pancreas.py`` and ``build_atlas.py`` differ only in how a source turns
 into the arrays ``cellucid.prepare()`` receives. Everything a rebuild has to
@@ -6,12 +6,14 @@ prove regardless of the dataset lives here, once:
 
 - the environment: the interpreter, the exact installed distribution set
   (``requirements-build.lock``), the BLAS runtime, the thread count, the hash
-  seed, and the SHA-256 of every Cellucid producer module the export path
+  seed, and the SHA-256 of every Cellucid producer module ``prepare()``
   executes, all read from ``sources/build-environment.json``;
 - the input: the source file's size and SHA-256 from ``sources/<id>.json``;
-- the output: a staged generation, validated against the identity, manifests,
-  payload digests and whole-generation digest that ``sources/<id>.json`` pins,
-  and only then swapped atomically into ``exports-v3/<id>/``.
+- the output: a Cellucid-ready AnnData Zarr store written to a staged sibling,
+  read back with anndata and checked element by element against what was
+  written and against the pins in ``sources/<id>.json``, measured byte for byte
+  against the recorded store digest, and only then swapped atomically into
+  ``anndata/<id>.zarr``.
 
 This module imports nothing outside the standard library at import time. The
 publisher suite, ``tests/test_pinned_build_publish.py``, runs in CI with no
@@ -20,7 +22,6 @@ dependencies installed, and every numerical import below is function-local.
 
 from __future__ import annotations
 
-import gzip
 import hashlib
 import importlib.metadata
 import inspect
@@ -33,6 +34,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import warnings
 import zlib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -42,30 +44,43 @@ from typing import Any
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SOURCES_ROOT = REPOSITORY_ROOT / "sources"
 ENVIRONMENT_PATH = SOURCES_ROOT / "build-environment.json"
-EXPORTS_ROOT = REPOSITORY_ROOT / "exports-v3"
+ANNDATA_ROOT = REPOSITORY_ROOT / "anndata"
 READ_CHUNK_BYTES = 1024 * 1024
 EXACT_REQUIREMENT_RE = re.compile(r"^([A-Za-z0-9_.-]+)==([^;\s]+)$")
 LOWER_HEX_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-PUBLICATION_SIDECAR_NAMES = frozenset(
-    {"default.cellucid-session", "state-snapshots.json"}
-)
-ENVIRONMENT_SCHEMA_VERSION = 1
-PROVENANCE_SCHEMA_VERSION = 3
-IDENTITY_VERSION = 3
-INDEXED_PAYLOAD_NAMES = {
-    "embeddings": re.compile(r"^(?:0|[1-9][0-9]*)_[123]d\.bin(?:\.gz)?$"),
-    "obs": re.compile(
-        r"^(?:0|[1-9][0-9]*)\.(?:values\.(?:u8|u16|f32)|codes\.u(?:8|16|32)"
-        r"|outliers\.(?:u8|u16|f32))(?:\.gz)?$"
-    ),
-    "var": re.compile(r"^(?:0|[1-9][0-9]*)\.values\.(?:u8|u16|f32)(?:\.gz)?$"),
-    "vectors": re.compile(r"^(?:0|[1-9][0-9]*)_(?:0|[1-9][0-9]*)\.bin(?:\.gz)?$"),
-}
-CANONICAL_GZIP_HEADER = bytes.fromhex("1f8b08000000000000ff")
+ENVIRONMENT_SCHEMA_VERSION = 2
+PROVENANCE_SCHEMA_VERSION = 4
+STORE_SUFFIX = ".zarr"
 # GitHub blocks a pushed file larger than 100 MiB (its hard per-file limit),
-# so a generation this repository could not publish is refused here, before
-# it replaces anything.
+# so a store this repository could not publish is refused here, before it
+# replaces anything.
 GITHUB_MAX_FILE_BYTES = 100 * 1024 * 1024
+# The keyword arguments the builders pass to cellucid.prepare(); a producer
+# without one of them is not the producer these pins describe.
+PREPARE_KEYWORDS = (
+    "format",
+    "embeddings",
+    "dataset_id",
+    "dataset_name",
+    "obs",
+    "var",
+    "gene_expression",
+    "connectivities",
+    "vector_fields",
+    "gene_identifiers",
+    "dataset_description",
+    "citation_text",
+    "citation_url",
+    "source_name",
+    "source_url",
+    "embedding_defaults",
+    "latent_key",
+    "obs_keys",
+    "vector_field_default",
+    "centroid_min_points",
+    "zarr_format",
+    "force",
+)
 
 
 # --------------------------------------------------------------------------
@@ -259,7 +274,7 @@ def configure_process(environment: dict[str, Any]) -> None:
         os.execve(sys.executable, [sys.executable, *sys.argv], child)
     for key, value in environment["thread_environment"].items():
         os.environ[key] = value
-    # The gene export loop draws a tqdm bar; it carries no build information.
+    # scanpy and scvelo draw tqdm bars; they carry no build information.
     os.environ["TQDM_DISABLE"] = "1"
 
 
@@ -353,10 +368,10 @@ def executed_producer_modules(repository: Path) -> list[str]:
     return sorted(executed)
 
 
-def require_export_path_within_manifest(
+def require_writer_within_manifest(
     repository: Path, source_files: list[dict[str, str]]
 ) -> None:
-    """Refuse to build when the export path runs producer code nothing pins.
+    """Refuse to build when ``prepare()`` runs producer code nothing pins.
 
     The pinned set is narrowed to the modules ``prepare()`` actually executes,
     which is only a stronger provenance claim while that set is measured rather
@@ -370,18 +385,18 @@ def require_export_path_within_manifest(
     ]
     if uncovered:
         raise RuntimeError(
-            "The Cellucid export path executes producer modules that "
+            "cellucid.prepare() executes producer modules that "
             "sources/build-environment.json does not pin: "
             + ", ".join(uncovered)
             + ". Add them to cellucid_producer.source_files so the recorded "
-            "provenance covers the code that writes the export."
+            "provenance covers the code that writes the store."
         )
 
 
 def producer_repository() -> Path:
     """The source tree the imported Cellucid producer is installed from.
 
-    The producer is pinned by the SHA-256 of every module the export path
+    The producer is pinned by the SHA-256 of every module ``prepare()``
     executes, so what matters is that the imported package *is* a source tree
     and that its files hash to the pins, not where that tree is checked out. The
     package must be an editable install of a ``src/cellucid`` layout: an
@@ -406,11 +421,11 @@ def producer_repository() -> Path:
     return repository
 
 
-def preflight_runtime(environment: dict[str, Any], *, data_version: str) -> Any:
+def preflight_runtime(environment: dict[str, Any]) -> Any:
     """Fail before any source is read if the canonical runtime differs.
 
-    Returns the ``cellucid`` module, whose ``prepare`` and ``Embedding`` are the
-    producer the pins describe.
+    Returns the ``cellucid`` module, whose ``prepare`` is the producer the pins
+    describe.
     """
     producer = environment["cellucid_producer"]
     require_equal(
@@ -471,7 +486,7 @@ def preflight_runtime(environment: dict[str, Any], *, data_version: str) -> Any:
 
     # Importing Cellucid is intentionally part of the producer preflight.
     import cellucid
-    from cellucid import Embedding, prepare  # noqa: F401
+    from cellucid import prepare
 
     repository = producer_repository()
     source_files = producer["source_files"]
@@ -480,7 +495,7 @@ def preflight_runtime(environment: dict[str, Any], *, data_version: str) -> Any:
         producer_manifest_sha256(repository, source_files),
         producer["source_tree_manifest_sha256"],
     )
-    require_export_path_within_manifest(repository, source_files)
+    require_writer_within_manifest(repository, source_files)
 
     require_equal(
         "NumPy byte order",
@@ -500,8 +515,8 @@ def preflight_runtime(environment: dict[str, Any], *, data_version: str) -> Any:
             require_equal(f"BLAS {key}", pool.get(key), blas_contract[key])
         require_equal("BLAS thread count", pool.get("num_threads"), 1)
 
-    signature = inspect.signature(prepare)
-    for keyword in ("created_at", "embeddings", "embedding_defaults", "var_gene_name_columns"):
+    signature = inspect.signature(inspect.unwrap(prepare))
+    for keyword in PREPARE_KEYWORDS:
         parameter = signature.parameters.get(keyword)
         if parameter is None or parameter.kind is not inspect.Parameter.KEYWORD_ONLY:
             raise RuntimeError(
@@ -509,11 +524,10 @@ def preflight_runtime(environment: dict[str, Any], *, data_version: str) -> Any:
                 f"the pinned build passes."
             )
     require_equal(
-        "Cellucid exporter version",
+        "Cellucid producer version",
         importlib.metadata.version("cellucid"),
         producer["version"],
     )
-    require_equal("Cellucid producer/export contract version", producer["version"], data_version)
     return cellucid
 
 
@@ -522,9 +536,16 @@ def preflight_runtime(environment: dict[str, Any], *, data_version: str) -> Any:
 # --------------------------------------------------------------------------
 
 
+def store_path(dataset_id: str) -> Path:
+    """Where the published store of one dataset lives: ``anndata/<id>.zarr``."""
+    return ANNDATA_ROOT / f"{dataset_id}{STORE_SUFFIX}"
+
+
 def preflight_output(output_path: Path, *, force: bool) -> None:
     if not output_path.is_absolute():
         raise ValueError(f"Output must be an absolute lexical path: {output_path}")
+    if not output_path.name.endswith(STORE_SUFFIX) or output_path.name == STORE_SUFFIX:
+        raise ValueError(f"Output must be a Zarr store folder named <id>{STORE_SUFFIX}: {output_path}")
     parent = output_path.parent
     if not parent.exists() or parent.is_symlink() or not parent.is_dir():
         raise ValueError(
@@ -552,25 +573,20 @@ def preflight_output(output_path: Path, *, force: bool) -> None:
 
 
 def stage_path(target: Path) -> Path:
-    """Return the one fixed sibling directory a publication stages into.
+    """Return the one fixed sibling a publication stages into.
 
-    The name carries no random suffix, and that is the point. ``prepare()``
-    holds its writer lock on ``<parent>/.<out_dir name>.cellucid.lock`` and
-    deliberately never unlinks it: ``cellucid/prepare_data/_locking.py``
-    explains that an unlink/create race can hand the same inode to two writers,
-    so the file stays and its identity is re-validated instead. That bounds the
-    number of lock files only while the locked name repeats. A stage under a
-    fresh random name would lock a name that can never recur, and every run
-    would strand one more zero-byte inode. A fixed stage name is reused on the
-    next run, and two concurrent publications contend for one lock instead of
-    each locking a name only itself knows.
+    ``prepare()`` writes a Zarr store only to a path ending in ``.zarr``, so
+    the stage keeps the target's name behind a fixed hidden prefix. The name
+    carries no random suffix: a stage an interrupted run left behind is found
+    by the next run, which refuses to publish into it, instead of accumulating
+    beside the store under names nothing looks for.
 
     The set-aside backup keeps its random suffix by contrast, because it is
     created with ``os.replace(target, backup)`` -- a fixed name that an
     interrupted run left behind would make that rename fail against a non-empty
-    directory -- and because nothing locks it, so it cannot accumulate.
+    directory -- and because nothing reuses it, so it cannot accumulate.
     """
-    return target.parent / f".{target.name}.stage"
+    return target.parent / f".stage.{target.name}"
 
 
 def safe_remove_sibling_tree(path: Path, *, target: Path, role: str) -> None:
@@ -586,29 +602,6 @@ def safe_remove_sibling_tree(path: Path, *, target: Path, role: str) -> None:
         if path.is_symlink() or not path.is_dir():
             raise RuntimeError(f"Refusing to remove invalid {role} path: {path}")
         shutil.rmtree(path)
-
-
-def copy_publication_sidecars(source: Path, destination: Path) -> None:
-    """Carry the reviewed publication sidecars over without adding them to science."""
-    if not source.exists():
-        return
-    for name in sorted(PUBLICATION_SIDECAR_NAMES):
-        source_path = source / name
-        if not os.path.lexists(source_path):
-            continue
-        metadata = source_path.lstat()
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-            raise ValueError(
-                f"Publication sidecar must be one regular file: {source_path}"
-            )
-        destination_path = destination / name
-        if os.path.lexists(destination_path):
-            raise RuntimeError(
-                f"The scientific producer wrote the reserved publication sidecar "
-                f"{destination_path}"
-            )
-        shutil.copyfile(source_path, destination_path)
-        destination_path.chmod(0o644)
 
 
 def fsync_directory(directory: Path) -> None:
@@ -697,262 +690,398 @@ def stage_validate_publish(
     *,
     force: bool,
     writer: Callable[[Path], None],
-    validator: Callable[[Path], None],
+    validator: Callable[[Path], Any],
     replace: Callable[[Path, Path], None] = os.replace,
-) -> None:
-    """Write and validate a sibling stage before changing the final target."""
+) -> Any:
+    """Write and validate a sibling stage before changing the final target.
+
+    ``writer`` creates the stage itself (``prepare()`` refuses a path that
+    exists); whatever ``validator`` returns is returned once the stage is
+    published.
+    """
     with exclusive_publish_lock(target):
         preflight_output(target, force=force)
         stage = stage_path(target)
-        try:
-            stage.mkdir(mode=0o700)
-        except FileExistsError as error:
+        if os.path.lexists(stage):
             raise RuntimeError(
                 f"A stage from an interrupted publication is still in place: "
-                f"{stage}. Publishing into it would mix two generations. Remove it "
+                f"{stage}. Publishing into it would mix two stores. Remove it "
                 f"once no build is running, then rerun."
-            ) from error
+            )
         try:
             writer(stage)
-            validator(stage)
-            copy_publication_sidecars(target, stage)
+            if stage.is_symlink() or not stage.is_dir():
+                raise RuntimeError(f"The writer did not create the stage store {stage}.")
+            measured = validator(stage)
             publish_validated_stage(stage, target, replace=replace)
         finally:
             if os.path.lexists(stage):
                 safe_remove_sibling_tree(stage, target=target, role="stage")
+    return measured
 
 
 # --------------------------------------------------------------------------
-# Generation measurement and validation
+# Store measurement and validation
 # --------------------------------------------------------------------------
 
 
-def generation_digest(directory: Path) -> tuple[str, int, int]:
-    """SHA-256 over every published file, its relative path and its size.
+def store_files(directory: Path) -> list[Path]:
+    """Every file of a store, in repository-relative POSIX order; no symlinks."""
+    files: list[Path] = []
+    for path in directory.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"A published store holds no symbolic link: {path}")
+        if path.is_file():
+            files.append(path)
+    return sorted(files, key=lambda path: path.relative_to(directory).as_posix())
 
-    The two root publication sidecars are excluded: they are reviewed artifacts
-    captured against the application after a rebuild, not science the producer
-    writes, so republishing a preset never moves a generation pin.
+
+def store_digest(directory: Path) -> dict[str, Any]:
+    """SHA-256 over every file of a store, its relative path and its size.
+
+    A file larger than GitHub accepts is refused here, before a store this
+    repository could not publish replaces anything.
     """
     digest = hashlib.sha256()
     file_count = 0
     total_bytes = 0
-    for path in sorted(
-        (
-            candidate
-            for candidate in directory.rglob("*")
-            if candidate.is_file()
-            and not (
-                candidate.parent == directory
-                and candidate.name in PUBLICATION_SIDECAR_NAMES
-            )
-        ),
-        key=lambda candidate: candidate.relative_to(directory).as_posix(),
-    ):
-        relative = path.relative_to(directory).as_posix().encode("utf-8")
+    for path in store_files(directory):
+        relative = path.relative_to(directory).as_posix()
         size = path.stat().st_size
         if size > GITHUB_MAX_FILE_BYTES:
             raise ValueError(
-                f"{path.relative_to(directory).as_posix()} is {size:,} bytes; GitHub "
-                f"refuses a file larger than {GITHUB_MAX_FILE_BYTES:,} bytes (100 MiB), "
-                "so this generation cannot be published from this repository."
+                f"{relative} is {size:,} bytes; GitHub refuses a file larger than "
+                f"{GITHUB_MAX_FILE_BYTES:,} bytes (100 MiB), so this store cannot be "
+                "published from this repository."
             )
-        digest.update(len(relative).to_bytes(8, "little"))
-        digest.update(relative)
+        encoded = relative.encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "little"))
+        digest.update(encoded)
         digest.update(size.to_bytes(8, "little"))
         with path.open("rb") as source:
             while chunk := source.read(READ_CHUNK_BYTES):
                 digest.update(chunk)
         file_count += 1
         total_bytes += size
-    return digest.hexdigest(), file_count, total_bytes
+    return {"file_count": file_count, "total_bytes": total_bytes, "sha256": digest.hexdigest()}
 
 
-def semantic_payload_paths(identity: dict[str, Any]) -> dict[str, int]:
-    """Every coordinate and vector payload, with the dimension it is laid out in."""
-    items = identity["embeddings"]["items"]
-    dimensions = {key: item["dimension"] for key, item in items.items()}
-    payloads = {item["file"]: item["dimension"] for item in items.values()}
-    for field in identity.get("vector_fields", {}).get("fields", {}).values():
-        for embedding_id, relative in field["files"].items():
-            payloads[relative] = dimensions[embedding_id]
-    return dict(sorted(payloads.items()))
+ZARR_METADATA_NAMES = (".zgroup", ".zarray", ".zattrs")
 
 
-def measure_semantic_payloads(output_path: Path, identity: dict[str, Any]) -> dict[str, Any]:
-    """Decompressed byte count, SHA-256 and row census of each float payload."""
+def require_consolidated_metadata(directory: Path) -> None:
+    """``.zmetadata`` must describe every metadata document of the store, exactly.
+
+    A browser cannot list a folder: the web app learns every group and array
+    of a store from ``.zmetadata`` alone, so a document it omits, or states
+    differently from the file beside it, is data the viewer never sees.
+    """
+    consolidated = json.loads((directory / ".zmetadata").read_text(encoding="utf-8"))
+    require_equal("consolidated metadata format", consolidated.get("zarr_consolidated_format"), 1)
+    on_disk: dict[str, Any] = {}
+    for path in store_files(directory):
+        if path.name in ZARR_METADATA_NAMES:
+            on_disk[path.relative_to(directory).as_posix()] = json.loads(
+                path.read_text(encoding="utf-8")
+            )
+    if ".zgroup" not in on_disk:
+        raise ValueError(f"{directory} is not a Zarr v2 store: it has no root .zgroup.")
+    require_equal(
+        "consolidated metadata documents",
+        sorted(consolidated["metadata"]),
+        sorted(on_disk),
+    )
+    for key, document in on_disk.items():
+        stated = dict(consolidated["metadata"][key])
+        if key.endswith(".zgroup"):
+            # zarr-python 3 states each group's own (empty) nested consolidation
+            # in the copy it consolidates; readers ignore it.
+            stated.pop("consolidated_metadata", None)
+        require_equal(f"consolidated {key}", stated, document)
+
+
+def require_published_file_modes(directory: Path) -> None:
+    for path in store_files(directory):
+        require_equal(
+            f"published file mode for {path.relative_to(directory).as_posix()}",
+            stat.S_IMODE(path.stat(follow_symlinks=False).st_mode),
+            0o644,
+        )
+
+
+def plain(value: Any) -> Any:
+    """A value read back from ``uns`` as the JSON it was written from."""
     import numpy as np
 
-    measured: dict[str, Any] = {}
-    for relative, dimension in semantic_payload_paths(identity).items():
-        raw = gzip.decompress((output_path / relative).read_bytes())
-        values = np.frombuffer(raw, dtype="<f4").reshape((-1, dimension))
-        entry: dict[str, Any] = {
-            "raw_bytes": len(raw),
-            "raw_sha256": hashlib.sha256(raw).hexdigest(),
-        }
-        if relative.startswith("vectors/"):
-            entry["nonzero_rows"] = int(
-                np.count_nonzero(np.linalg.norm(values, axis=1) > 0)
+    if isinstance(value, dict):
+        return {key: plain(item) for key, item in value.items()}
+    if isinstance(value, np.ndarray):
+        return [plain(item) for item in value.tolist()]
+    if isinstance(value, list):
+        return [plain(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def obs_frame_digests(frame: Any) -> dict[str, dict[str, str]]:
+    """Category and code digests of categorical columns, value digests of the rest."""
+    import pandas as pd
+
+    digests: dict[str, dict[str, str]] = {}
+    for column in frame.columns:
+        values = frame[column]
+        if isinstance(values.dtype, pd.CategoricalDtype):
+            digests[column] = {
+                "categories_json_sha256": hash_strings(values.cat.categories.tolist()),
+                "codes_i32_sha256": hash_array(values.cat.codes, "<i4"),
+            }
+        else:
+            digests[column] = {"f64_sha256": hash_array(values.to_numpy(), "<f8")}
+    return digests
+
+
+def validate_outlier_quantiles(
+    stored: Any,
+    *,
+    obs: Any,
+    defaults: dict[str, Any],
+) -> dict[str, dict[str, str]]:
+    """Check ``uns['cellucid']['outlierQuantiles']`` and return its field digests.
+
+    ``prepare()`` stores it whenever it is given a latent space, measured with
+    the ``latentKey`` and ``centroidMinPoints`` the store's defaults name: one
+    float32 quantile per cell for every categorical obs field with at least
+    one category of ``minPoints`` cells. A quantile is the share of the cell's
+    category at its distance from the centre or closer, so it is NaN exactly
+    where a cell has no category or one under ``minPoints``, lies in (0, 1]
+    everywhere else, and is 1 for the farthest cell of every scored category.
+    The quantities themselves are pinned by their float32 digests, which the
+    build records with the store.
+    """
+    import numpy as np
+    import pandas as pd
+
+    if "latentKey" not in defaults:
+        require_equal("uns['cellucid']['outlierQuantiles']", stored, None)
+        return {}
+    if not isinstance(stored, dict):
+        raise ValueError("uns['cellucid']['outlierQuantiles'] must be stored with the latent space.")
+    require_equal("outlierQuantiles keys", sorted(stored), ["fields", "latentKey", "minPoints"])
+    require_equal("outlierQuantiles latentKey", plain(stored["latentKey"]), defaults["latentKey"])
+    min_points = defaults["centroidMinPoints"]
+    require_equal("outlierQuantiles minPoints", plain(stored["minPoints"]), min_points)
+
+    expected_fields: dict[str, Any] = {}
+    for column in obs.columns:
+        if not isinstance(obs[column].dtype, pd.CategoricalDtype):
+            continue
+        codes = obs[column].cat.codes.to_numpy().astype(np.int64)
+        counts = np.bincount(codes[codes >= 0], minlength=len(obs[column].cat.categories))
+        if (counts >= min_points).any():
+            expected_fields[column] = (codes, counts)
+    fields = stored["fields"]
+    require_equal("outlierQuantiles fields", sorted(fields), sorted(expected_fields))
+
+    digests: dict[str, dict[str, str]] = {}
+    for column, (codes, counts) in expected_fields.items():
+        values = fields[column]
+        label = f"outlierQuantiles[{column!r}]"
+        if not isinstance(values, np.ndarray):
+            raise TypeError(f"{label} must be an array.")
+        require_equal(f"{label} dtype", str(values.dtype), "float32")
+        require_equal(f"{label} shape", list(values.shape), [len(codes)])
+        scored = (codes >= 0) & (counts[np.maximum(codes, 0)] >= min_points)
+        if not np.array_equal(np.isnan(values), ~scored):
+            raise ValueError(f"{label} must be NaN exactly where a cell has no scored category.")
+        kept = values[scored]
+        if not ((kept > 0) & (kept <= 1)).all():
+            raise ValueError(f"{label} must lie in (0, 1] for every scored cell.")
+        farthest = np.full(len(counts), -np.inf, dtype=np.float32)
+        np.maximum.at(farthest, codes[scored], kept)
+        if not (farthest[counts >= min_points] == 1).all():
+            raise ValueError(f"{label} must be 1 for the farthest cell of every scored category.")
+        digests[column] = {"f32_sha256": hash_array(values, "<f4")}
+    return digests
+
+
+def validate_store(
+    stage: Path,
+    *,
+    contract: dict[str, Any],
+    expected: dict[str, Any],
+) -> dict[str, Any]:
+    """Read one staged store back off disk and check it against what was written.
+
+    ``expected`` holds what the builder handed ``prepare()``: the cell and
+    gene names, the obs frame, the var columns, the expression matrix, every
+    obsm array and the neighbour graph. Each is compared with the element
+    anndata reads back, exactly; ``uns['cellucid']`` is compared with the
+    contract it was written from, and its ``outlierQuantiles`` with the rule
+    ``validate_outlier_quantiles`` checks. Returns the measurement the contract
+    records: the published expression, the outlier-quantile digests and the
+    store's byte summary.
+    """
+    import anndata as ad
+    import numpy as np
+    import pandas as pd
+    from scipy import sparse
+
+    require_consolidated_metadata(stage)
+    require_published_file_modes(stage)
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("always")
+        adata = ad.read_zarr(stage)
+    require_equal(
+        "warnings reading the store",
+        [f"{item.category.__name__}: {item.message}" for item in captured],
+        [],
+    )
+
+    require_equal("obs names", adata.obs_names.tolist(), list(expected["obs_names"]))
+    require_equal("var names", adata.var_names.tolist(), list(expected["var_names"]))
+    obs = adata.obs
+    require_equal("obs columns", list(obs.columns), list(expected["obs"].columns))
+    for column in obs.columns:
+        written = expected["obs"][column]
+        read = obs[column]
+        require_equal(f"obs[{column!r}] dtype", str(read.dtype), str(written.dtype))
+        if isinstance(read.dtype, pd.CategoricalDtype):
+            require_equal(
+                f"obs[{column!r}] categories",
+                read.cat.categories.tolist(),
+                written.cat.categories.tolist(),
             )
-        measured[relative] = entry
+            require_equal(f"obs[{column!r}] ordered", read.cat.ordered, written.cat.ordered)
+            if not np.array_equal(read.cat.codes.to_numpy(), written.cat.codes.to_numpy()):
+                raise ValueError(f"obs[{column!r}] codes differ from the ones written.")
+        elif not np.array_equal(read.to_numpy(), written.to_numpy(), equal_nan=True):
+            raise ValueError(f"obs[{column!r}] values differ from the ones written.")
+    require_equal(
+        "var columns", list(adata.var.columns), list(expected["var_columns"])
+    )
+    for column, values in expected["var_columns"].items():
+        require_equal(f"var[{column!r}]", adata.var[column].tolist(), list(values))
+
+    if not isinstance(adata.X, sparse.csc_matrix | sparse.csc_array):
+        raise TypeError("X must be stored gene-major (csc_matrix).")
+    require_equal("X dtype", str(adata.X.dtype), "float32")
+    expression_digest, expression_nnz = hash_sparse(adata.X)
+    require_equal(
+        "X canonical digest", expression_digest, hash_sparse(expected["X"])[0]
+    )
+
+    require_equal("obsm keys", sorted(adata.obsm.keys()), sorted(expected["obsm"]))
+    for key, values in expected["obsm"].items():
+        read = adata.obsm[key]
+        require_equal(f"obsm[{key!r}] dtype", str(read.dtype), "float32")
+        if not np.array_equal(read, np.asarray(values, dtype=np.float32)):
+            raise ValueError(f"obsm[{key!r}] differs from the array written.")
+
+    require_equal("obsp keys", sorted(adata.obsp.keys()), ["connectivities"])
+    graph = adata.obsp["connectivities"]
+    if not isinstance(graph, sparse.csr_matrix | sparse.csr_array):
+        raise TypeError("obsp['connectivities'] must be stored as csr_matrix.")
+    require_equal(
+        "connectivities canonical digest",
+        hash_sparse(graph)[0],
+        hash_sparse(expected["connectivities"])[0],
+    )
+    for element in ("layers", "varm", "varp"):
+        require_equal(f"{element} keys", list(getattr(adata, element).keys()), [])
+    require_equal("uns keys", sorted(adata.uns.keys()), ["cellucid", "title"])
+    require_equal("uns['title']", plain(adata.uns["title"]), contract["uns_cellucid"]["name"])
+    cellucid = dict(adata.uns["cellucid"])
+    outlier_quantiles = cellucid.pop("outlierQuantiles", None)
+    require_equal("uns['cellucid']", plain(cellucid), contract["uns_cellucid"])
+    outlier_digests = validate_outlier_quantiles(
+        outlier_quantiles,
+        obs=expected["obs"],
+        defaults=contract["uns_cellucid"].get("defaults", {}),
+    )
+
+    measured = {
+        "expression": {
+            "shape": [int(adata.n_obs), int(adata.n_vars)],
+            "nnz": expression_nnz,
+            "canonical_csr_sha256": expression_digest,
+        },
+        "outlier_quantiles": outlier_digests,
+        "store": store_digest(stage),
+    }
+    print(
+        f"Verified {measured['store']['file_count']:,} store files "
+        f"({measured['store']['total_bytes']:,} bytes; "
+        f"SHA-256 {measured['store']['sha256']})."
+    )
     return measured
 
 
-def validate_generation(
-    output_path: Path,
-    provenance: dict[str, Any],
-) -> dict[str, Any]:
-    """Check one staged generation against everything ``sources/<id>.json`` pins.
+def require_recorded(dataset_id: str, contract: dict[str, Any], measured: dict[str, Any]) -> None:
+    """A rebuild must reproduce the recorded store byte for byte."""
+    recorded = contract.get("recorded")
+    if recorded is None:
+        raise ValueError(
+            f"sources/{dataset_id}.json records no store yet; build it once with "
+            "--record, review the result, and rebuild without it to prove it reproduces."
+        )
+    require_equal(f"{dataset_id} store measurement", measured, recorded)
 
-    Returns the identity it read, so a builder can add checks of its own.
+
+def record_measurement(dataset_id: str, measured: dict[str, Any]) -> None:
+    """Write a published store's measurement into ``sources/<id>.json``."""
+    path = SOURCES_ROOT / f"{dataset_id}.json"
+    provenance = json.loads(path.read_text(encoding="utf-8"))
+    provenance["anndata_contract"]["recorded"] = measured
+    path.write_text(json.dumps(provenance, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Recorded the store measurement in sources/{dataset_id}.json.")
+
+
+# --------------------------------------------------------------------------
+# Repinning the producer
+# --------------------------------------------------------------------------
+
+
+def repin_producer() -> dict[str, Any]:
+    """Pin the producer modules ``prepare()`` executes, as they are now.
+
+    Run after a deliberate change to the cellucid-python producer, then
+    rebuild every store without ``--record``: a store that comes out byte for
+    byte the same proves the change did not reach the bytes; one that does not
+    must be rebuilt with ``--record`` and reviewed. The executed set is the one
+    ``require_writer_within_manifest`` measures on every build.
     """
-    import numpy as np
+    from cellucid import prepare  # noqa: F401
 
-    export = provenance["export_contract"]
-    identity = json.loads((output_path / "dataset_identity.json").read_text(encoding="utf-8"))
-    require_equal("generated identity version", identity["version"], IDENTITY_VERSION)
-    for key in ("cellucid_data_version", "id", "name", "description", "created_at"):
-        require_equal(f"generated identity {key}", identity[key], export["identity"][key])
-    require_equal("generated identity stats", identity["stats"], export["identity"]["stats"])
-    require_equal(
-        "generated identity embeddings",
-        identity["embeddings"],
-        export["identity"]["embeddings"],
-    )
-    require_equal(
-        "generated identity vector_fields",
-        identity.get("vector_fields"),
-        export["identity"]["vector_fields"],
-    )
-    require_equal("generated identity source", identity["source"], export["identity"]["source"])
-    require_equal(
-        "generated identity export_settings",
-        identity["export_settings"],
-        export["identity"]["export_settings"],
-    )
-    require_equal(
-        "generated identity obs fields",
-        identity["obs_fields"],
-        export["identity"]["obs_fields"],
-    )
-
-    obs_manifest = json.loads((output_path / "obs_manifest.json").read_text(encoding="utf-8"))
-    require_equal("generated obs manifest format", obs_manifest["_format"], "compact_v2")
-    # A payload file is named by its integer index and never by its key, so a
-    # manifest entry leads with that index. Both arrays write into obs/, so
-    # they share one index space, and a repeated index would publish one
-    # field's values under another field's entry.
-    obs_indices = [
-        entry[0]
-        for entry in (*obs_manifest["_continuousFields"], *obs_manifest["_categoricalFields"])
+    repository = producer_repository()
+    paths = executed_producer_modules(repository)
+    source_files = [
+        {"path": relative, "sha256": hash_and_size(repository / relative)[0]}
+        for relative in paths
     ]
-    require_equal(
-        "generated obs payload indices",
-        sorted(obs_indices),
-        list(range(len(obs_indices))),
+    environment = json.loads(ENVIRONMENT_PATH.read_text(encoding="utf-8"))
+    producer = environment["cellucid_producer"]
+    producer["version"] = importlib.metadata.version("cellucid")
+    producer["source_files"] = source_files
+    producer["source_tree_manifest_sha256"] = producer_manifest_sha256(repository, source_files)
+    ENVIRONMENT_PATH.write_text(
+        json.dumps(environment, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
-    for entry in obs_manifest["_categoricalFields"]:
-        require_equal(
-            f"generated centroid embeddings for obs[{entry[1]!r}]",
-            sorted(entry[5]),
-            sorted(identity["embeddings"]["items"]),
-        )
+    return producer
 
-    var_manifest = json.loads((output_path / "var_manifest.json").read_text(encoding="utf-8"))
-    require_equal("generated var manifest format", var_manifest["_format"], "compact_v2")
-    require_equal(
-        "generated gene payload indices",
-        [entry[0] for entry in var_manifest["fields"]],
-        list(range(identity["stats"]["n_genes"])),
-    )
-    require_equal(
-        "generated gene names digest",
-        hash_strings([entry[1] for entry in var_manifest["fields"]]),
-        export["gene_names_json_sha256"],
-    )
-    require_equal(
-        "generated gene-name sets",
-        [
-            {key: value for key, value in entry.items() if key != "names"}
-            for entry in var_manifest["gene_name_sets"]
-        ],
-        export["gene_name_sets"],
-    )
-    require_equal(
-        "generated alternative gene-name digests",
-        [
-            hash_strings(
-                [
-                    default if name is None else name
-                    for default, name in zip(
-                        (entry[1] for entry in var_manifest["fields"]),
-                        name_set["names"],
-                        strict=True,
-                    )
-                ]
-            )
-            for name_set in var_manifest["gene_name_sets"][1:]
-        ],
-        export["alternative_gene_name_digests"],
-    )
 
-    for directory, pattern in INDEXED_PAYLOAD_NAMES.items():
-        if not (output_path / directory).exists():
-            continue
-        offenders = sorted(
-            path.name
-            for path in (output_path / directory).iterdir()
-            if pattern.fullmatch(path.name) is None
-        )
-        if offenders:
-            raise ValueError(
-                f"Generated {directory}/ names payload files after something other "
-                f"than their integer index: {offenders[:5]}"
-            )
+if __name__ == "__main__":
+    import argparse
 
-    gzip_paths = sorted(output_path.rglob("*.gz"))
-    if not gzip_paths:
-        raise RuntimeError("Generated dataset must contain gzip artifacts.")
-    for path in output_path.rglob("*"):
-        if path.is_file():
-            require_equal(
-                f"published file mode for {path.relative_to(output_path)}",
-                stat.S_IMODE(path.stat(follow_symlinks=False).st_mode),
-                0o644,
-            )
-    for path in gzip_paths:
-        with path.open("rb") as source:
-            header = source.read(10)
-        require_equal(
-            f"canonical gzip header for {path.relative_to(output_path)}",
-            header,
-            CANONICAL_GZIP_HEADER,
-        )
-
-    measured = measure_semantic_payloads(output_path, identity)
-    require_equal("semantic payload digests", measured, export["semantic_payloads"])
-    for relative, dimension in semantic_payload_paths(identity).items():
-        if not relative.startswith("embeddings/"):
-            continue
-        raw = gzip.decompress((output_path / relative).read_bytes())
-        values = np.frombuffer(raw, dtype="<f4").reshape((-1, dimension))
-        require_finite(f"semantic payload {relative}", values)
-        if not bool(np.all((values >= -1) & (values <= 1))):
-            raise ValueError(f"Embedding payload {relative} must remain within [-1, 1].")
-
-    sha256, file_count, total_bytes = generation_digest(output_path)
-    require_equal(
-        "generation summary",
-        {"file_count": file_count, "total_bytes": total_bytes, "sha256": sha256},
-        {
-            "file_count": export["expected_file_count"],
-            "total_bytes": export["expected_total_bytes"],
-            "sha256": export["generation_sha256"],
-        },
+    parser = argparse.ArgumentParser(description="Maintain the pinned build environment.")
+    parser.add_argument(
+        "command",
+        choices=["repin-producer"],
+        help="repin-producer: pin the cellucid modules prepare() executes, as they are now.",
     )
+    parser.parse_args()
+    pinned = repin_producer()
     print(
-        f"Verified {file_count:,} deterministic artifacts "
-        f"({total_bytes:,} bytes; SHA-256 {sha256})."
+        f"Pinned cellucid {pinned['version']}: {len(pinned['source_files'])} modules, "
+        f"manifest {pinned['source_tree_manifest_sha256']}."
     )
-    return identity

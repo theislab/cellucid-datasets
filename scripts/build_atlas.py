@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Build one pinned human developmental-atlas generation for Cellucid.
+"""Build one pinned human developmental-atlas store for Cellucid.
 
 Garcia, He, Kanemaru and Suo are four outputs of one scVI/scANVI integration
-pipeline, and one recipe turns each of them into a published generation:
+pipeline, and one recipe turns each of them into a published Cellucid-ready
+AnnData Zarr store:
 
 1. read the integration output, refusing any byte count or SHA-256 other than
    the one ``sources/<id>.json`` pins, and check every array the build reads
@@ -15,18 +16,21 @@ pipeline, and one recipe turns each of them into a published generation:
    2D and 3D UMAPs, all from that one graph, single-threaded and seeded, so the
    coordinates are a pure function of the pinned inputs and environment;
 5. name every gene through the pinned identifier frame and the pinned
-   Ensembl-to-symbol table, publish only genes that resolve to a symbol, and
-   carry the upstream Ensembl accession as a second gene-name set;
-6. call ``cellucid.prepare()`` and validate the staged generation against every
-   pin before it replaces ``exports-v3/<id>/``.
+   Ensembl-to-symbol table, publish only genes that resolve to a symbol (the
+   ``var`` index), and carry the upstream Ensembl accession beside it as
+   ``var['ensembl_gene_id']``;
+6. call ``cellucid.prepare(format="zarr")`` and validate the staged store
+   against every pin before it replaces ``anndata/<id>.zarr``.
 
-The parameters are the ones the historical preparation notebooks recorded
-(``notebooks/<id>_1_prepare_anndata.ipynb`` and ``<id>_2_export_cellucid.ipynb``);
-this script is their deterministic transcription. The integration outputs
-themselves are not redistributable and are never copied into this repository:
-``--source-dir`` names the directory that holds them.
+The integration outputs themselves are not redistributable and are never
+copied into this repository: ``--source-dir`` names the directory that holds
+them.
 
     python scripts/build_atlas.py --dataset he --source-dir ../.anndatas --force
+
+``--record`` writes the measured store into ``sources/<id>.json`` instead of
+comparing it with the recorded one; a rebuild without it must then reproduce
+the store byte for byte.
 """
 
 from __future__ import annotations
@@ -64,22 +68,6 @@ def _read_source(path: Path, contract: dict[str, Any]) -> dict[str, Any]:
     return source
 
 
-def _obs_column_digests(frame: Any) -> dict[str, dict[str, str]]:
-    import pandas as pd
-
-    digests: dict[str, dict[str, str]] = {}
-    for column in frame.columns:
-        values = frame[column]
-        if isinstance(values.dtype, pd.CategoricalDtype):
-            digests[column] = {
-                "categories_json_sha256": pb.hash_strings(values.cat.categories.tolist()),
-                "codes_i32_sha256": pb.hash_array(values.cat.codes, "<i4"),
-            }
-        else:
-            digests[column] = {"f64_sha256": pb.hash_array(values.to_numpy(), "<f8")}
-    return digests
-
-
 def _validate_source(source: dict[str, Any], contract: dict[str, Any]) -> None:
     import numpy as np
     from scipy import sparse
@@ -104,7 +92,7 @@ def _validate_source(source: dict[str, Any], contract: dict[str, Any]) -> None:
         pb.hash_strings(obs.index.tolist()),
         contract["obs_names_json_sha256"],
     )
-    pb.require_equal("source obs column digests", _obs_column_digests(obs), contract["obs_digests"])
+    pb.require_equal("source obs column digests", pb.obs_frame_digests(obs), contract["obs_digests"])
 
     # The source carries no gene names: its var index is the positional matrix
     # column number and nothing else, so the identifier frame is aligned to it
@@ -184,7 +172,7 @@ def _curate_obs(obs: Any, contract: dict[str, Any]) -> Any:
     pb.require_equal("trimmed category labels", trimmed, contract["trimmed_labels"])
     pb.require_equal("published obs fields", list(obs.columns), contract["published_fields"])
     pb.require_equal(
-        "published obs column digests", _obs_column_digests(obs), contract["published_digests"]
+        "published obs column digests", pb.obs_frame_digests(obs), contract["published_digests"]
     )
     return obs
 
@@ -260,8 +248,12 @@ def _name_genes(
     identifier_path: Path,
     symbol_table_path: Path,
     contract: dict[str, Any],
-) -> tuple[Any, list[str]]:
-    """Resolve one symbol per gene; a gene with no symbol is not published."""
+) -> tuple[Any, list[int]]:
+    """Resolve one symbol per gene; a gene with no symbol is not published.
+
+    Returns the published genes' ``var`` -- indexed by symbol, with the
+    upstream accession as a column -- and their source column positions.
+    """
     import pandas as pd
 
     identifier_frame = pd.read_pickle(identifier_path)
@@ -314,14 +306,12 @@ def _name_genes(
     pb.require_equal(
         "published gene-name digest", pb.hash_strings(exported), contract["published_names_json_sha256"]
     )
+    keep = [index for index, flag in enumerate(named) if flag]
     var = pd.DataFrame(
-        {
-            contract["default_name_column"]: gene_names,
-            contract["accession_name_column"]: upstream,
-        },
-        index=pd.Index([str(index) for index in range(n_vars)], name="source_var_position"),
+        {contract["accession_name_column"]: [upstream[index] for index in keep]},
+        index=pd.Index(exported),
     )
-    return var, exported
+    return var, keep
 
 
 def _build(
@@ -330,6 +320,7 @@ def _build(
     output_path: Path,
     *,
     force: bool,
+    record: bool,
     provenance: dict[str, Any],
     cellucid: Any,
 ) -> None:
@@ -350,7 +341,7 @@ def _build(
 
     input_contract = provenance["input_contract"]
     analysis = provenance["analysis_contract"]
-    export = provenance["export_contract"]
+    contract = provenance["anndata_contract"]
     with warnings.catch_warnings(record=True) as captured:
         warnings.simplefilter("always")
         source = _read_source(source_path, input_contract)
@@ -359,7 +350,7 @@ def _build(
         obs = _curate_obs(source["obs"], provenance["obs_contract"])
         latent = np.asarray(source["obsm"][analysis["neighbors"]["use_rep"]], dtype=np.float32)
         connectivities, umaps = _derive_layout(obs, latent, analysis)
-        var, exported_genes = _name_genes(
+        var, published_columns = _name_genes(
             source["X"].shape[1], identifier_path, symbol_table_path, provenance["gene_naming"]
         )
     pb.require_equal(
@@ -368,56 +359,71 @@ def _build(
         provenance["warning_contract"],
     )
 
-    embeddings: dict[str, Any] = {}
-    for embedding_id, spec in export["embeddings"].items():
+    expression = source["X"].tocsc()[:, published_columns]
+    del source["X"]
+    obsm: dict[str, Any] = {}
+    for key, spec in contract["obsm"].items():
         if spec["origin"] == "umap":
             values = umaps[spec["dimension"]]
         else:
             values = np.asarray(source["obsm"][spec["source_key"]], dtype=np.float32)
-        embeddings[embedding_id] = cellucid.Embedding(
-            values,
-            columns=spec["columns"],
-            label=spec["label"],
-            source_key=spec["source_key"],
-        )
-    identity = export["identity"]
-    naming = provenance["gene_naming"]
+            if spec["columns"] is not None:
+                values = np.ascontiguousarray(values[:, spec["columns"]])
+        obsm[key] = values
+    uns = contract["uns_cellucid"]
+    defaults = uns["defaults"]
+    pb.require_equal(
+        "latent space of the neighbour graph",
+        defaults["latentKey"],
+        analysis["neighbors"]["use_rep"],
+    )
 
     def write_stage(stage: Path) -> None:
         cellucid.prepare(
-            latent_space=latent,
+            stage,
+            format="zarr",
+            zarr_format=contract["zarr_format"],
+            embeddings=obsm,
+            dataset_id=uns["id"],
+            dataset_name=uns["name"],
+            dataset_description=uns["description"],
+            citation_text=uns["citation"]["text"],
+            citation_url=uns["citation"].get("url"),
+            source_name=uns["source"]["name"],
+            source_url=uns["source"].get("url"),
             obs=obs,
             var=var,
-            gene_expression=source["X"],
-            var_gene_id_column=naming["default_name_column"],
-            var_gene_name_columns=[naming["accession_name_column"]],
-            gene_identifiers=exported_genes,
+            gene_expression=expression,
             connectivities=connectivities,
-            out_dir=stage,
-            centroid_outlier_quantile=export["centroid_outlier_quantile"],
-            centroid_min_points=export["centroid_min_points"],
+            embedding_defaults={
+                f"{dimension}d": defaults[f"embedding{dimension}d"] for dimension in (1, 2, 3)
+            },
+            latent_key=defaults["latentKey"],
+            centroid_min_points=defaults["centroidMinPoints"],
             force=False,
-            var_quantization=identity["export_settings"]["var_quantization"],
-            obs_continuous_quantization=identity["export_settings"]["obs_continuous_quantization"],
-            compression=identity["export_settings"]["compression"],
-            obs_categorical_dtype=identity["export_settings"]["obs_categorical_dtype"],
-            dataset_name=identity["name"],
-            dataset_id=dataset_id,
-            dataset_description=identity["description"],
-            source_name=identity["source"]["name"],
-            source_url=identity["source"]["url"],
-            source_citation=identity["source"]["citation"],
-            embeddings=embeddings,
-            embedding_defaults=export["embedding_defaults"],
-            created_at=identity["created_at"],
         )
 
-    pb.stage_validate_publish(
-        output_path,
-        force=force,
-        writer=write_stage,
-        validator=lambda stage: pb.validate_generation(stage, provenance),
+    expected = {
+        "obs_names": obs.index.tolist(),
+        "var_names": var.index.tolist(),
+        "obs": obs,
+        "var_columns": {column: var[column].tolist() for column in var.columns},
+        "X": expression,
+        "obsm": obsm,
+        "connectivities": connectivities,
+    }
+
+    def validate(stage: Path) -> dict[str, Any]:
+        measured = pb.validate_store(stage, contract=contract, expected=expected)
+        if not record:
+            pb.require_recorded(dataset_id, contract, measured)
+        return measured
+
+    measured = pb.stage_validate_publish(
+        output_path, force=force, writer=write_stage, validator=validate
     )
+    if record:
+        pb.record_measurement(dataset_id, measured)
 
 
 def main() -> None:
@@ -425,7 +431,7 @@ def main() -> None:
     pb.configure_process(environment)
     parser = argparse.ArgumentParser(
         description=(
-            "Rebuild one pinned human developmental-atlas generation from its "
+            "Rebuild one pinned human developmental-atlas store from its "
             "pinned integration output."
         )
     )
@@ -443,29 +449,35 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        help="Prepared output directory (default: exports-v3/<dataset>).",
+        help="Zarr store folder to write (default: anndata/<dataset>.zarr).",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Atomically replace an existing complete generation.",
+        help="Atomically replace an existing store.",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help=(
+            "Record the measured store in sources/<dataset>.json instead of "
+            "requiring the recorded one."
+        ),
     )
     args = parser.parse_args()
     provenance = pb.load_provenance(args.dataset)
-    output = args.output if args.output is not None else pb.EXPORTS_ROOT / args.dataset
+    output = args.output if args.output is not None else pb.store_path(args.dataset)
     output_path = Path(os.path.abspath(os.fspath(output)))
 
     # Producer and runtime preflights deliberately precede any read or write.
-    cellucid = pb.preflight_runtime(
-        environment,
-        data_version=provenance["export_contract"]["identity"]["cellucid_data_version"],
-    )
+    cellucid = pb.preflight_runtime(environment)
     pb.preflight_output(output_path, force=args.force)
     _build(
         args.dataset,
         args.source_dir.resolve(),
         output_path,
         force=args.force,
+        record=args.record,
         provenance=provenance,
         cellucid=cellucid,
     )

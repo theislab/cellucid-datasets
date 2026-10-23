@@ -1,0 +1,23 @@
+{
+  "encoding-type": "dataframe",
+  "encoding-version": "0.2.0",
+  "_index": "_index",
+  "column-order": [
+    "sample_ID",
+    "organ",
+    "age",
+    "cell_type",
+    "sex",
+    "sex_inferred",
+    "concatenated_integration_covariates",
+    "integration_donor",
+    "integration_biological_unit",
+    "integration_sample_status",
+    "integration_library_platform_coarse",
+    "n_genes",
+    "LVL3",
+    "LVL2",
+    "LVL1",
+    "LVL0"
+  ]
+}

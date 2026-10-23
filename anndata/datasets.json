@@ -1,0 +1,51 @@
+{
+  "schema": 2,
+  "default": "suo",
+  "datasets": [
+    {
+      "id": "suo",
+      "path": "suo.zarr/",
+      "session": {
+        "path": "suo.cellucid-session",
+        "bytes": 4223,
+        "sha256": "c4d848b70fe7378bb7db41b2aea204e3ffef6e6cd70132764fcbdeb5f1353945"
+      }
+    },
+    {
+      "id": "garcia",
+      "path": "garcia.zarr/",
+      "session": {
+        "path": "garcia.cellucid-session",
+        "bytes": 4246,
+        "sha256": "b50327c154785fb5dbc9e0fe5a99b104643753c1b80f88642251c00e4ebcaa64"
+      }
+    },
+    {
+      "id": "he",
+      "path": "he.zarr/",
+      "session": {
+        "path": "he.cellucid-session",
+        "bytes": 4228,
+        "sha256": "ed1716a8750e2037b382db75e888eaafdeb49e91d7a92f1a132d2319cef5c7c4"
+      }
+    },
+    {
+      "id": "kanemaru",
+      "path": "kanemaru.zarr/",
+      "session": {
+        "path": "kanemaru.cellucid-session",
+        "bytes": 4256,
+        "sha256": "0b77c5df1f405900c2bc96d8ad67bf04687933d508aba6510ccd6d181706fe02"
+      }
+    },
+    {
+      "id": "pancreas",
+      "path": "pancreas.zarr/",
+      "session": {
+        "path": "pancreas.cellucid-session",
+        "bytes": 4432,
+        "sha256": "9f0663b603ee1edcda59e41e78716edd01444721bfc1c23c2d35baf0187b6ff1"
+      }
+    }
+  ]
+}

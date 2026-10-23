@@ -6,20 +6,20 @@ Thanks for using the Cellucid demo datasets.
 
 - Documentation: https://docs.cellucid.com
 - A sample that will not open, a wrong count, or a wrong label in one of the
-  published generations is an issue here:
+  published datasets is an issue here:
   https://github.com/theislab/cellucid-datasets/issues
 - Anything about how the viewer draws, filters, or exports what it loaded
   belongs in the web app: https://github.com/theislab/cellucid/issues
 - Questions about the science in one of these atlases belong with the study
-  that published it, not here. Each generation records its upstream study in
-  `exports-v3/<id>/dataset_identity.json`.
+  that published it, not here. Each dataset records its upstream study in
+  `uns['cellucid']` of `anndata/<id>.zarr` (`source` and `citation`).
 - For security issues, see `SECURITY.md`.
 
 ## Data & privacy
 
 Every dataset in this repository is already public. Please don’t attach private
 data (including patient-derived data) to issues or logs here. Prefer minimal
-synthetic examples, anonymized screenshots, or small reproducible exports.
+synthetic examples, anonymized screenshots, or small reproducible AnnData files.
 
 ## Code of Conduct
 

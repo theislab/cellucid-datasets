@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
-"""Build the exact pinned scVelo Pancreas generation for Cellucid.
+"""Build the exact pinned scVelo Pancreas store for Cellucid.
 
 The source is the commit-pinned scVelo notebook file, downloaded when
 ``--source`` is omitted. What is derived from it - the 1D and 3D UMAPs, the
 stochastic velocity fit and its projections onto the 1D, 2D and 3D layouts -
 is recomputed single-threaded and seeded, and every intermediate is checked
-against ``sources/pancreas.json``. The environment, the producer pins, the
-staged publication and the generation checks shared with the atlas builder
-live in ``pinned_build.py``.
+against ``sources/pancreas.json``. The result is written with
+``cellucid.prepare(format="zarr")`` to ``anndata/pancreas.zarr``: the velocity
+projections under scVelo's names, ``obsm['velocity_<basis>']`` beside the
+embedding ``obsm['X_<basis>']`` it is drawn on (``velocity_umap_1d``,
+``velocity_umap``, ``velocity_umap_3d``). The environment, the producer pins, the staged
+publication and the store checks shared with the atlas builder live in
+``pinned_build.py``.
+
+``--record`` writes the measured store into ``sources/pancreas.json`` instead
+of comparing it with the recorded one; a rebuild without it must then
+reproduce the store byte for byte.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import tempfile
 import urllib.request
@@ -255,7 +262,7 @@ def _validate_source(source: Any, provenance: dict[str, Any]) -> dict[str, Any]:
 
 def _derive_public_obs(source: Any, provenance: dict[str, Any]) -> Any:
     input_contract = provenance["input_contract"]
-    derived_contracts = provenance["export_contract"]["derived_obs_fields"]
+    derived_contracts = provenance["anndata_contract"]["derived_obs_fields"]
     pb.require_equal(
         "Pancreas derived obs field keys",
         list(derived_contracts),
@@ -554,46 +561,16 @@ def _derive_analysis(
     return embeddings, vectors
 
 
-def _validate_generation(output_path: Path, provenance: dict[str, Any]) -> None:
-    """The shared generation checks, plus the one Pancreas-only invariant.
-
-    ``cell_type`` is a published convenience alias of ``clusters``. Element 0
-    of a categorical entry is the payload index and element 1 the key, and the
-    alias differs from its source in both; every element from 2 on - the
-    categories, the code width, the missing code, the centroids and the outlier
-    bounds - and both payload files must be identical to the field it copies.
-    """
-    pb.validate_generation(output_path, provenance)
-    alias = provenance["export_contract"]["derived_obs_fields"]["cell_type"]
-    obs_manifest = json.loads(
-        (output_path / "obs_manifest.json").read_text(encoding="utf-8")
-    )
-    categorical = {entry[1]: entry for entry in obs_manifest["_categoricalFields"]}
-    source_field = alias["source_field"]
-    pb.require_equal(
-        "generated Pancreas cell_type categorical metadata",
-        categorical["cell_type"][2:],
-        categorical[source_field][2:],
-    )
-    for suffix in ("codes.u8.gz", "outliers.u8.gz"):
-        pb.require_equal(
-            f"generated Pancreas cell_type {suffix}",
-            (output_path / "obs" / f"{categorical['cell_type'][0]}.{suffix}").read_bytes(),
-            (output_path / "obs" / f"{categorical[source_field][0]}.{suffix}").read_bytes(),
-        )
-
-
 def _build(
     source_path: Path,
     output_path: Path,
     *,
     force: bool,
+    record: bool,
     provenance: dict[str, Any],
     environment: dict[str, Any],
     cellucid: Any,
 ) -> None:
-    import numpy as np
-
     pb.verify_input_file(source_path, provenance["source"], label="Pancreas source")
     print(
         "Verified source "
@@ -625,23 +602,21 @@ def _build(
         provenance["input_contract"]["digests"]["source_umap_2d_f32_sha256"],
     )
 
-    export = provenance["export_contract"]
-    identity = export["identity"]
-    # One default name per gene, in a var column of its own, so that every
-    # generation in the catalog declares its gene identity the same way. The
-    # names are the source's own MGI symbols and are not translated, looked up
-    # or altered; the source carries no second identifier to offer beside them.
-    public["var"] = public["var"].assign(gene_name=public["genes"])
-    pb.require_equal(
-        "Pancreas gene-name column",
-        public["var"]["gene_name"].tolist(),
-        public["genes"],
-    )
+    contract = provenance["anndata_contract"]
+    uns = contract["uns_cellucid"]
+    defaults = uns["defaults"]
+    # The source's own MGI symbols name the genes, as its var index; they are
+    # not translated, looked up or altered, and the source carries no second
+    # identifier to offer beside them.
+    var = public["var"].iloc[:, []]
+    pb.require_equal("Pancreas gene names", var.index.tolist(), public["genes"])
     published_obs = _derive_public_obs(source, provenance)
-    published_obs_keys = [
-        *provenance["input_contract"]["obs_fields"],
-        *export["derived_obs_fields"],
-    ]
+    pb.require_equal(
+        "Pancreas listed obs fields",
+        defaults["obsKeys"],
+        [*provenance["input_contract"]["obs_fields"], *contract["derived_obs_fields"]],
+    )
+    pb.require_equal("Pancreas latent space", defaults["latentKey"], "X_pca")
 
     arrays = {
         "derived_umap_1d": embeddings[1],
@@ -649,60 +624,82 @@ def _build(
         "derived_umap_3d": embeddings[3],
         "source_pca": public["latent_space"],
     }
-    export_embeddings = {
-        embedding_id: cellucid.Embedding(
-            arrays[spec["array"]],
-            columns=spec["columns"],
-            label=spec["label"],
-            source_key=spec["source_key"],
-        )
-        for embedding_id, spec in export["embeddings"].items()
-    }
+    obsm = {key: arrays[spec["array"]] for key, spec in contract["obsm"].items()}
     vector_fields = {
-        export["vector_field"]: {
-            embedding_id: vectors[analysis_key]
-            for embedding_id, analysis_key in export["vector_field_bindings"].items()
+        contract["vector_field"]: {
+            embedding_key: vectors[analysis_key]
+            for embedding_key, analysis_key in contract["vector_field_bindings"].items()
         }
     }
-    settings = identity["export_settings"]
+    pb.require_equal(
+        "Pancreas default vector field", defaults["vectorFieldDefault"], contract["vector_field"]
+    )
+    expression = public["expression"].tocsc()
 
     def write_stage(stage: Path) -> None:
         cellucid.prepare(
-            latent_space=public["latent_space"],
+            stage,
+            format="zarr",
+            zarr_format=contract["zarr_format"],
+            embeddings=obsm,
+            dataset_id=uns["id"],
+            dataset_name=uns["name"],
+            dataset_description=uns["description"],
+            citation_text=uns["citation"]["text"],
+            citation_url=uns["citation"]["url"],
+            source_name=uns["source"]["name"],
+            source_url=uns["source"]["url"],
             obs=published_obs,
-            var=public["var"],
-            gene_expression=public["expression"],
-            var_gene_id_column="gene_name",
-            gene_identifiers=public["genes"],
+            var=var,
+            gene_expression=expression,
             connectivities=public["connectivity"],
-            out_dir=stage,
-            obs_keys=published_obs_keys,
-            centroid_outlier_quantile=export["centroid_outlier_quantile"],
-            centroid_min_points=export["centroid_min_points"],
-            force=False,
-            var_quantization=settings["var_quantization"],
-            obs_continuous_quantization=settings["obs_continuous_quantization"],
-            compression=settings["compression"],
-            obs_categorical_dtype=settings["obs_categorical_dtype"],
-            dataset_name=identity["name"],
-            dataset_id=provenance["dataset_id"],
-            dataset_description=identity["description"],
-            source_name=identity["source"]["name"],
-            source_url=provenance["source"]["url"],
-            source_citation=provenance["citation"]["text"],
-            embeddings=export_embeddings,
-            embedding_defaults=export["embedding_defaults"],
             vector_fields=vector_fields,
-            vector_field_default=export["vector_field"],
-            created_at=identity["created_at"],
+            vector_field_default=contract["vector_field"],
+            embedding_defaults={
+                f"{dimension}d": defaults[f"embedding{dimension}d"] for dimension in (1, 2, 3)
+            },
+            latent_key=defaults["latentKey"],
+            obs_keys=defaults["obsKeys"],
+            centroid_min_points=defaults["centroidMinPoints"],
+            force=False,
         )
 
-    pb.stage_validate_publish(
-        output_path,
-        force=force,
-        writer=write_stage,
-        validator=lambda stage: _validate_generation(stage, provenance),
+    expected = {
+        "obs_names": published_obs.index.tolist(),
+        "var_names": public["genes"],
+        "obs": published_obs,
+        "var_columns": {},
+        "X": expression,
+        "obsm": {
+            **obsm,
+            # scVelo's naming: the field <field> on X_<basis> is obsm['<field>_<basis>'].
+            **{
+                f"{contract['vector_field']}_{embedding_key.removeprefix('X_')}": vectors[analysis_key]
+                for embedding_key, analysis_key in contract["vector_field_bindings"].items()
+            },
+        },
+        "connectivities": public["connectivity"],
+    }
+
+    def validate(stage: Path) -> dict[str, Any]:
+        measured = pb.validate_store(stage, contract=contract, expected=expected)
+        # cell_type is a published convenience alias of its source field: the
+        # same categories, order and codes under a second name.
+        alias = contract["derived_obs_fields"]["cell_type"]["source_field"]
+        pb.require_equal(
+            "cell_type alias digests",
+            pb.obs_frame_digests(published_obs[["cell_type"]])["cell_type"],
+            pb.obs_frame_digests(published_obs[[alias]])[alias],
+        )
+        if not record:
+            pb.require_recorded(DATASET_ID, contract, measured)
+        return measured
+
+    measured = pb.stage_validate_publish(
+        output_path, force=force, writer=write_stage, validator=validate
     )
+    if record:
+        pb.record_measurement(DATASET_ID, measured)
 
 
 def main() -> None:
@@ -725,29 +722,35 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=pb.EXPORTS_ROOT / DATASET_ID,
-        help="Prepared output directory (default: exports-v3/pancreas).",
+        default=pb.store_path(DATASET_ID),
+        help="Zarr store folder to write (default: anndata/pancreas.zarr).",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Atomically replace an existing complete Pancreas generation.",
+        help="Atomically replace an existing Pancreas store.",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help=(
+            "Record the measured store in sources/pancreas.json instead of "
+            "requiring the recorded one."
+        ),
     )
     args = parser.parse_args()
     provenance = pb.load_provenance(DATASET_ID)
     output_path = Path(os.path.abspath(os.fspath(args.output)))
 
     # Producer/runtime preflights deliberately precede network and output writes.
-    cellucid = pb.preflight_runtime(
-        environment,
-        data_version=provenance["export_contract"]["identity"]["cellucid_data_version"],
-    )
+    cellucid = pb.preflight_runtime(environment)
     pb.preflight_output(output_path, force=args.force)
     if args.source is not None:
         _build(
             args.source.resolve(),
             output_path,
             force=args.force,
+            record=args.record,
             provenance=provenance,
             environment=environment,
             cellucid=cellucid,
@@ -761,6 +764,7 @@ def main() -> None:
             source_path,
             output_path,
             force=args.force,
+            record=args.record,
             provenance=provenance,
             environment=environment,
             cellucid=cellucid,

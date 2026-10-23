@@ -9,14 +9,12 @@ const REPOSITORY_ROOT = new URL('../', import.meta.url);
 const WORKFLOWS_ROOT = new URL('.github/workflows/', REPOSITORY_ROOT);
 const TESTS_ROOT = new URL('tests/', REPOSITORY_ROOT);
 const SCRIPTS_ROOT = new URL('scripts/', REPOSITORY_ROOT);
-const NOTEBOOKS_ROOT = new URL('notebooks/', REPOSITORY_ROOT);
 const SOURCES_ROOT = new URL('sources/', REPOSITORY_ROOT);
-const EXPORTS_ROOT = new URL('exports-v3/', REPOSITORY_ROOT);
 const GIT_ATTRIBUTES_URL = new URL('.gitattributes', REPOSITORY_ROOT);
-const GITIGNORE_URL = new URL('.gitignore', REPOSITORY_ROOT);
 const README_URL = new URL('README.md', REPOSITORY_ROOT);
 const CITATION_URL = new URL('CITATION.cff', REPOSITORY_ROOT);
-const CATALOG_URL = new URL('exports-v3/datasets.json', REPOSITORY_ROOT);
+const INDEX_URL = new URL('index.html', REPOSITORY_ROOT);
+const CATALOG_URL = new URL('anndata/datasets.json', REPOSITORY_ROOT);
 /** This file, so the suite sweep below cannot pass on an empty directory. */
 const THIS_SUITE = path.basename(fileURLToPath(import.meta.url));
 const THIS_SUITE_PATH = `tests/${THIS_SUITE}`;
@@ -46,7 +44,7 @@ const SUITE_RUNNERS = Object.freeze([
     suffix: '.py',
     label: 'python -m unittest',
     invocation: /\bpython3?\b[\s\\>|-]*-m[\s\\>|-]*unittest\b/g,
-    minimumSuites: 1,
+    minimumSuites: 2,
   }),
 ]);
 
@@ -59,22 +57,19 @@ const SUITE_RUNNERS = Object.freeze([
  */
 const UNGOVERNED_ROOT_FILES = Object.freeze(['.DS_Store']);
 /**
- * The directories whose every non-hidden file is a text artifact. `exports-v3/`
- * is not among them: it holds 37,000 gzip payloads and the
- * `*.cellucid-session` binaries that `.gitattributes` marks `-text`, so it is
- * swept by targeted extension in readCatalogDocuments() instead of by reading
- * everything.
+ * The directories whose every non-hidden file is a text artifact. `anndata/`
+ * is not among them: it holds the stores' compressed chunks and the
+ * `*.cellucid-session` binaries that `.gitattributes` marks `-text`, so only
+ * its catalog is swept, by name, in readCatalogDocuments().
  */
 const TEXT_SURFACE_DIRECTORIES = Object.freeze([
   Object.freeze({ region: 'workflows', prefix: '.github/workflows/', root: WORKFLOWS_ROOT }),
   Object.freeze({ region: 'tests', prefix: 'tests/', root: TESTS_ROOT }),
   Object.freeze({ region: 'scripts', prefix: 'scripts/', root: SCRIPTS_ROOT }),
-  Object.freeze({ region: 'notebooks', prefix: 'notebooks/', root: NOTEBOOKS_ROOT }),
   Object.freeze({ region: 'sources', prefix: 'sources/', root: SOURCES_ROOT }),
 ]);
 const TEXT_SURFACE_REGIONS = Object.freeze([
-  'exports-v3',
-  'notebooks',
+  'anndata',
   'root',
   'scripts',
   'sources',
@@ -82,18 +77,18 @@ const TEXT_SURFACE_REGIONS = Object.freeze([
   'workflows',
 ]);
 /**
- * Measured against the 61 text artifacts on disk today: 12 root files, 1
- * workflow, 4 suites, 4 scripts, 8 notebooks, 6 provenance records and 26
- * published catalog documents. The floor exists so an enumeration that lands
- * on the wrong tree, or that quietly loses a region, fails instead of sweeping
- * a handful of files while reading as though it swept the repository.
+ * Measured against the 30 text artifacts on disk today: 15 root files, 1
+ * workflow, 5 suites, 5 scripts, 6 provenance records and the catalog. The
+ * floor exists so an enumeration that lands on the wrong tree, or that quietly
+ * loses a region, fails instead of sweeping a handful of files while reading
+ * as though it swept the repository.
  */
-const MINIMUM_TEXT_SURFACE_FILES = 40;
+const MINIMUM_TEXT_SURFACE_FILES = 25;
 /**
  * The same surface minus the three artifacts excepted from the retired-path
- * rule below. Measured at 58 today.
+ * rule below. Measured at 27 today.
  */
-const MINIMUM_GOVERNED_ARTIFACTS = 30;
+const MINIMUM_GOVERNED_ARTIFACTS = 22;
 /**
  * The one place in this repository allowed to hold the vocabulary the
  * retired-path rule forbids is the block that defines the rule and its
@@ -104,30 +99,6 @@ const MAXIMUM_VOCABULARY_BLOCK_LINES = 60;
 const VOCABULARY_BLOCK_BEGIN = /^\/\* retired-path-vocabulary:begin \*\/$/;
 const VOCABULARY_BLOCK_END = /^\/\* retired-path-vocabulary:end \*\/$/;
 /**
- * The markers around the one definition of "published" the suites share.
- * `catalog-contract.test.mjs` swept `exports-v3/` for prepared generations while
- * `session-presets-contract.test.mjs` swept it for state artifacts, and the
- * two disagreed about which directories counted: the first skipped the local
- * scratch exports `.gitignore` excludes, the second descended into them, and
- * this file kept a third copy of the same idea. Whichever of them was widened
- * first would have won without anything saying so, so the definition now lives
- * in one block, byte-identical wherever `exports-v3/` is enumerated, and the
- * sweep below refuses a fourth.
- */
-const PUBLISHED_GENERATIONS_BEGIN = /^\/\* published-generations:begin \*\/$/;
-const PUBLISHED_GENERATIONS_END = /^\/\* published-generations:end \*\/$/;
-/** How a suite names the root of `exports-v3/` when it enumerates it. */
-const EXPORTS_ROOT_REFERENCE = /\bEXPORTS_(?:ROOT|URL)\b/;
-/**
- * The name convention this repository selected published generations by before
- * the rule moved into `.gitignore`. A suite reaching for it outside the shared
- * block is writing a second definition of "published".
- */
-const PRIVATE_GENERATION_FILTER = /startsWith\(\s*(['"])_\1/;
-/** The suites that enumerate `exports-v3/`, so an empty sweep cannot pass. */
-const MINIMUM_EXPORTS_ENUMERATING_SUITES = 3;
-
-/**
  * The README byte cap kept the file from becoming an implementation diary but
  * allowed it to become nothing at all: an empty README satisfies a cap. The
  * floor is measured against the current 4,497 hand-written bytes. Both bounds
@@ -136,7 +107,7 @@ const MINIMUM_EXPORTS_ENUMERATING_SUITES = 3;
  * is held to that citation byte for byte by the citation test below.
  */
 const MINIMUM_README_BYTES = 1_200;
-const MAXIMUM_README_BYTES = 4_500;
+const MAXIMUM_README_BYTES = 5_000;
 const REQUIRED_README_LINKS = Object.freeze([
   'https://docs.cellucid.com/en/latest/',
   'https://github.com/theislab/cellucid',
@@ -151,9 +122,18 @@ const MARKDOWN_BOLD_PATTERN = /\*\*([^*\n]+)\*\*/g;
 const RETIRED_REPOSITORY_PATHS = Object.freeze([
   'bridge.html',
   'bridge.js',
+  'exports-v3',
+  'notebooks',
   'sessions',
   'tests/bridge-contract.test.mjs',
 ]);
+/**
+ * The words of the prepared-export layout this repository published before it
+ * held AnnData stores. Nothing reads that layout any more, so a text artifact
+ * that still names it describes a path the repository no longer has.
+ */
+const RETIRED_LAYOUT_LANGUAGE =
+  /exports-v3|dataset_identity\.json|obs_manifest|var_manifest|state-snapshots\.json|default\.cellucid-session/;
 
 /* retired-path-vocabulary:begin */
 const RETIRED_PATH_LANGUAGE =
@@ -193,60 +173,6 @@ const RETIRED_PATH_LANGUAGE_EXCEPTIONS = Object.freeze([
   }),
 ]);
 /* retired-path-vocabulary:end */
-
-/* published-generations:begin */
-/**
- * The one definition of "published" these suites have, held byte-identical in
- * every file that enumerates `exports-v3/`. Two files that each decided for
- * themselves which directories under `exports-v3/` counted governed different
- * sets of artifacts while reading as though they governed the same set, and
- * whichever definition was widened first would have won in silence.
- *
- * The rule itself is not restated here. It is read out of `.gitignore`, which
- * is what actually decides whether a directory under `exports-v3/` is committed:
- * every `/exports-v3/<glob>/` line names a tree the repository keeps out, and a
- * hidden entry is never a prepared generation.
- * `repository-organization-contract.test.mjs` fails if a copy of this block
- * diverges from the others, if a suite that enumerates `exports-v3/` carries no
- * copy, or if any suite selects generations by a name convention of its own.
- */
-const PUBLISHED_GENERATION_IGNORE_SCOPE = '/exports-v3/';
-
-function publishedGenerationNames(entries, gitignoreText) {
-  const excluded = gitignoreText
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(
-      (line) =>
-        line.startsWith(PUBLISHED_GENERATION_IGNORE_SCOPE)
-        && line.endsWith('/')
-    )
-    .map((line) => line.slice(PUBLISHED_GENERATION_IGNORE_SCOPE.length, -1));
-  assert.ok(
-    excluded.length > 0,
-    '.gitignore names no uncommitted directory under exports-v3/, so the rule '
-      + 'these suites select published generations by is no longer there to read'
-  );
-  const patterns = excluded.map(
-    (glob) =>
-      new RegExp(
-        `^${glob
-          .split('*')
-          .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-          .join('[^/]*')}$`
-      )
-  );
-  return entries
-    .filter(
-      (entry) =>
-        entry.isDirectory()
-        && !entry.name.startsWith('.')
-        && !patterns.some((pattern) => pattern.test(entry.name))
-    )
-    .map((entry) => entry.name)
-    .sort();
-}
-/* published-generations:end */
 
 async function readWorkflowNames() {
   return (await readdir(WORKFLOWS_ROOT))
@@ -301,28 +227,9 @@ async function readDirectoryArtifacts({ region, prefix, root }, pattern = null) 
     }));
 }
 
-/** The published catalog and every generation sidecar beside it, by extension. */
+/** The published catalog: the one text artifact under `anndata/`. */
 async function readCatalogDocuments() {
-  const documents = [
-    { region: 'exports-v3', relative: 'exports-v3/datasets.json', url: CATALOG_URL },
-  ];
-  const generations = publishedGenerationNames(
-    await readdir(EXPORTS_ROOT, { withFileTypes: true }),
-    await readFile(GITIGNORE_URL, 'utf8')
-  );
-  for (const generation of generations) {
-    documents.push(
-      ...(await readDirectoryArtifacts(
-        {
-          region: 'exports-v3',
-          prefix: `exports-v3/${generation}/`,
-          root: new URL(`${generation}/`, EXPORTS_ROOT),
-        },
-        /\.json$/
-      ))
-    );
-  }
-  return documents;
+  return [{ region: 'anndata', relative: 'anndata/datasets.json', url: CATALOG_URL }];
 }
 
 /**
@@ -396,7 +303,10 @@ test('the text-surface enumeration reaches every region of the repository', asyn
     'sources/build-environment.json',
     'sources/pancreas.json',
     'sources/suo.json',
-    'exports-v3/datasets.json',
+    'scripts/anndata_store.mjs',
+    'tests/test_anndata_stores.py',
+    'index.html',
+    'anndata/datasets.json',
   ]) {
     assert.ok(
       surface.some((artifact) => artifact.relative === anchor),
@@ -409,7 +319,9 @@ test('the text-surface enumeration reaches every region of the repository', asyn
 test('all text artifacts keep exact LF bytes on every checkout platform', async () => {
   assert.equal(
     await readFile(GIT_ATTRIBUTES_URL, 'utf8'),
-    '* text=auto eol=lf\n*.cellucid-session -text\n',
+    '* text=auto eol=lf\n*.cellucid-session -text\n/anndata/*.zarr/** -text\n',
+    'the stores\' chunks are compressed bytes with no extension, which text=auto '
+      + 'could take for text and rewrite on checkout',
   );
 
   // The policy file agreeing with itself says nothing about the bytes the
@@ -631,162 +543,29 @@ test('README names every dataset the published catalog advertises', async () => 
   }
 });
 
-/**
- * The invariant: every suite that enumerates `exports-v3/` decides which of its
- * directories are published with the same rule, held as one byte-identical
- * block, and no suite may decide it any other way.
- */
-test('every suite selects published generations by the one shared rule', async () => {
-  const suiteNames = (await readSuiteNames()).filter((name) =>
-    name.endsWith('.test.mjs')
-  );
-  assert.ok(
-    suiteNames.length >= MINIMUM_EXPORTS_ENUMERATING_SUITES,
-    `the sweep found ${suiteNames.length} JavaScript suites, fewer than the `
-      + `${MINIMUM_EXPORTS_ENUMERATING_SUITES} this repository publishes, so it `
-      + 'is reading the wrong directory'
-  );
-
-  const blocksBySuite = new Map();
-  const enumeratingSuites = [];
-  const ownFilters = [];
-  for (const name of suiteNames) {
-    const relative = `tests/${name}`;
-    const source = await readFile(new URL(name, TESTS_ROOT), 'utf8');
-    const blockLines = [];
-    let blockCount = 0;
-    let inside = false;
-    let callsSharedRule = false;
+test('no text artifact describes the prepared-export layout this repository no longer has', async () => {
+  const surface = await readTextSurface();
+  const violations = [];
+  let read = 0;
+  for (const artifact of surface) {
+    if (artifact.relative === THIS_SUITE_PATH) continue;
+    const source = await readArtifactText(artifact.url);
+    if (source === null) continue;
+    read += 1;
     for (const [index, line] of source.split('\n').entries()) {
-      if (PUBLISHED_GENERATIONS_BEGIN.test(line)) {
-        assert.equal(
-          inside,
-          false,
-          `${relative}:${index + 1} opens a published-generation block inside `
-            + 'another one'
-        );
-        inside = true;
-        blockCount += 1;
-        blockLines.push(line);
-        continue;
-      }
-      if (PUBLISHED_GENERATIONS_END.test(line)) {
-        assert.equal(
-          inside,
-          true,
-          `${relative}:${index + 1} closes a published-generation block that `
-            + 'was never opened'
-        );
-        inside = false;
-        blockLines.push(line);
-        continue;
-      }
-      if (inside) {
-        blockLines.push(line);
-        continue;
-      }
-      if (line.includes('publishedGenerationNames(')) callsSharedRule = true;
-      if (PRIVATE_GENERATION_FILTER.test(line)) {
-        ownFilters.push(`${relative}:${index + 1}: ${line.trim()}`);
+      if (RETIRED_LAYOUT_LANGUAGE.test(line)) {
+        violations.push(`${artifact.relative}:${index + 1}: ${line.trim()}`);
       }
     }
-    assert.equal(
-      inside,
-      false,
-      `${relative} opens a published-generation block it never closes`
-    );
-    assert.ok(
-      blockCount <= 1,
-      `${relative} carries ${blockCount} published-generation blocks; one copy `
-        + 'per file is what makes them comparable'
-    );
-
-    const enumeratesExports = EXPORTS_ROOT_REFERENCE.test(source);
-    if (enumeratesExports) enumeratingSuites.push(relative);
-    assert.equal(
-      blockCount === 1,
-      enumeratesExports,
-      enumeratesExports
-        ? `${relative} enumerates exports-v3/ without the shared published-`
-          + 'generation block, so it is deciding for itself which directories '
-          + 'are published'
-        : `${relative} carries the shared published-generation block without `
-          + 'enumerating exports-v3/, so the copy is unused and free to rot away '
-          + 'from the ones that are'
-    );
-    assert.equal(
-      callsSharedRule,
-      enumeratesExports,
-      `${relative} must call publishedGenerationNames exactly where it decides `
-        + 'which directories under exports-v3/ are published'
-    );
-    if (blockCount === 1) blocksBySuite.set(relative, blockLines.join('\n'));
   }
+  assert.ok(read >= MINIMUM_GOVERNED_ARTIFACTS, `only ${read} text artifacts were read`);
+  assert.deepEqual(violations, []);
+});
 
-  assert.ok(
-    enumeratingSuites.length >= MINIMUM_EXPORTS_ENUMERATING_SUITES,
-    `only ${enumeratingSuites.length} suites were seen to enumerate exports-v3/, `
-      + `below the ${MINIMUM_EXPORTS_ENUMERATING_SUITES} that do, so this sweep `
-      + 'is not seeing the files it governs'
-  );
-  assert.deepEqual(
-    [...blocksBySuite.keys()].sort(),
-    [...enumeratingSuites].sort()
-  );
-  assert.equal(
-    new Set(blocksBySuite.values()).size,
-    1,
-    `the ${blocksBySuite.size} copies of the published-generation block are not `
-      + 'byte-identical, so these suites no longer share one definition of '
-      + `which directories under exports-v3/ are published:\n`
-      + [...blocksBySuite.keys()].join('\n')
-  );
-  assert.deepEqual(
-    ownFilters,
-    [],
-    'these lines select generations by a name convention of their own instead '
-      + 'of by the shared rule, which is how a second definition of "published" '
-      + 'gets written:\n'
-      + ownFilters.join('\n')
-  );
-
-  // The rule read out of .gitignore, exercised against a listing this test
-  // controls: the scratch exports the repository excludes and the hidden
-  // entries beside them are not generations, and files never are.
-  const gitignore = await readFile(GITIGNORE_URL, 'utf8');
-  assert.deepEqual(
-    publishedGenerationNames(
-      [
-        { name: 'pancreas', isDirectory: () => true },
-        { name: '_scratch', isDirectory: () => true },
-        { name: '.ipynb_checkpoints', isDirectory: () => true },
-        { name: 'datasets.json', isDirectory: () => false },
-      ],
-      gitignore
-    ),
-    ['pancreas'],
-    'the shared rule no longer excludes the scratch export directories '
-      + '.gitignore keeps out of this repository, so a local export would be '
-      + 'swept as though it had been published'
-  );
-
-  const generations = publishedGenerationNames(
-    await readdir(EXPORTS_ROOT, { withFileTypes: true }),
-    gitignore
-  );
-  const catalog = JSON.parse(await readFile(CATALOG_URL, 'utf8'));
-  assert.ok(
-    catalog.datasets.length > 0,
-    'the published catalog must advertise at least one dataset'
-  );
-  for (const entry of catalog.datasets) {
-    assert.ok(
-      generations.includes(entry.id),
-      `the shared rule does not count the catalogued dataset '${entry.id}' as `
-        + 'published, so every sweep driven by it is skipping a dataset the '
-        + 'sample picker offers'
-    );
-  }
+test('the site shell lists the catalog the web app reads', async () => {
+  const index = await readFile(INDEX_URL, 'utf8');
+  assert.match(index, /fetch\('\.\/anndata\/datasets\.json'/);
+  assert.match(index, /catalog\.schema !== 2/);
 });
 
 test('every test suite in tests/ is run by every dataset workflow', async () => {

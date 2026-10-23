@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "dataset_id": "garcia",
   "builder": "scripts/build_atlas.py",
   "source": {
@@ -14,10 +14,6 @@
   "citation": {
     "text": "Single-cell roadmap of human gonadal development. ArrayExpress study E-MTAB-10551."
   },
-  "recipe": [
-    "notebooks/garcia_1_prepare_anndata.ipynb",
-    "notebooks/garcia_2_export_cellucid.ipynb"
-  ],
   "ownership": {
     "source_owned": [
       "raw integer counts X and the ordered cell identifiers",
@@ -32,7 +28,7 @@
       "age as a continuous field, converted from its categorical numeric strings",
       "one 15-nearest-neighbour graph on obsm['scvi'], which is also the published connectivity",
       "the 1D, 2D and 3D UMAPs of that one graph",
-      "gene symbols resolved through ensembl_to_hgnc.pickle; genes without one are not published"
+      "gene symbols resolved through ensembl_to_hgnc.pickle, the var index; genes without one are not published, and the upstream accession is kept as var['ensembl_gene_id']"
     ]
   },
   "selection": null,
@@ -323,270 +319,119 @@
     "published_names_json_sha256": "8e20d6b725e7edcae338aff6d4b68d3d989bd7f81d8fc41bfe7eea2a69109684"
   },
   "warning_contract": [],
-  "export_contract": {
-    "embeddings": {
+  "anndata_contract": {
+    "store": "anndata/garcia.zarr",
+    "zarr_format": 2,
+    "uns_cellucid": {
+      "schema": 1,
+      "id": "garcia",
+      "name": "Developing human gonad (Garcia)",
+      "description": "Single-cell roadmap of human gonadal development",
+      "citation": {
+        "text": "Single-cell roadmap of human gonadal development. ArrayExpress study E-MTAB-10551."
+      },
+      "source": {
+        "name": "E-MTAB-10551",
+        "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-10551"
+      },
+      "defaults": {
+        "embedding1d": "X_umap_1d",
+        "embedding2d": "X_umap_2d",
+        "embedding3d": "X_umap_3d",
+        "latentKey": "scvi",
+        "centroidMinPoints": 10
+      }
+    },
+    "obsm": {
       "X_umap_1d": {
         "origin": "umap",
-        "dimension": 1,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 1
       },
       "X_umap_2d": {
         "origin": "umap",
-        "dimension": 2,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 2
       },
       "X_umap_3d": {
         "origin": "umap",
-        "dimension": 3,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 3
       },
       "X_umap": {
         "origin": "source",
-        "dimension": 2,
-        "label": "UMAP (source file)",
         "source_key": "X_umap",
         "columns": null
       },
       "X_pca": {
         "origin": "source",
-        "dimension": 2,
-        "label": "PCA (unintegrated)",
         "source_key": "X_pca",
         "columns": [
           0,
           1
         ]
+      },
+      "scvi": {
+        "origin": "source",
+        "source_key": "scvi",
+        "columns": null
       }
     },
-    "embedding_defaults": {
-      "2d": "X_umap_2d"
-    },
-    "centroid_outlier_quantile": 0.9,
-    "centroid_min_points": 10,
-    "identity": {
-      "cellucid_data_version": "0.9.3",
-      "id": "garcia",
-      "name": "Developing human gonad (Garcia)",
-      "description": "Single-cell roadmap of human gonadal development",
-      "created_at": "2026-10-18T00:00:00Z",
-      "stats": {
-        "n_cells": 219731,
-        "n_genes": 5754,
-        "n_obs_fields": 16,
-        "n_categorical_fields": 14,
-        "n_continuous_fields": 2,
-        "has_connectivity": true,
-        "n_edges": 2681508
+    "recorded": {
+      "expression": {
+        "shape": [
+          219731,
+          5754
+        ],
+        "nnz": 31521860,
+        "canonical_csr_sha256": "2ffb7c19b022589a0f141e4a1879321c357c8368f24c8be55f2d63eb6c0aab90"
       },
-      "embeddings": {
-        "default_dimension": 3,
-        "defaults": {
-          "1d": "X_umap_1d",
-          "2d": "X_umap_2d",
-          "3d": "X_umap_3d"
+      "outlier_quantiles": {
+        "sample_ID": {
+          "f32_sha256": "1d4f765c33237591d6f6c4c91730a90b18dae51097f98229db4aa5278863d7f4"
         },
-        "items": {
-          "X_umap_1d": {
-            "label": "UMAP",
-            "dimension": 1,
-            "file": "embeddings/0_1d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0
-              ]
-            }
-          },
-          "X_pca": {
-            "label": "PCA (unintegrated)",
-            "dimension": 2,
-            "file": "embeddings/1_2d.bin.gz",
-            "source": {
-              "key": "X_pca",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap": {
-            "label": "UMAP (source file)",
-            "dimension": 2,
-            "file": "embeddings/2_2d.bin.gz",
-            "source": {
-              "key": "X_umap",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_2d": {
-            "label": "UMAP",
-            "dimension": 2,
-            "file": "embeddings/3_2d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_3d": {
-            "label": "UMAP",
-            "dimension": 3,
-            "file": "embeddings/4_3d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1,
-                2
-              ]
-            }
-          }
+        "organ": {
+          "f32_sha256": "a419ab535b44f1b56caba05f2213ff98327fdd5e9f5d0866f52c02f368f71a93"
+        },
+        "cell_type": {
+          "f32_sha256": "db661bbb1d8566e60121c3cb00b263d0292e21189df9bd77462a803e6fdab4ff"
+        },
+        "sex": {
+          "f32_sha256": "bd8ea43ab2641455d42d7d611295042db735f54c81b1fb0f6c2be021de1b99e1"
+        },
+        "sex_inferred": {
+          "f32_sha256": "bd8ea43ab2641455d42d7d611295042db735f54c81b1fb0f6c2be021de1b99e1"
+        },
+        "concatenated_integration_covariates": {
+          "f32_sha256": "1d4f765c33237591d6f6c4c91730a90b18dae51097f98229db4aa5278863d7f4"
+        },
+        "integration_donor": {
+          "f32_sha256": "1d4f765c33237591d6f6c4c91730a90b18dae51097f98229db4aa5278863d7f4"
+        },
+        "integration_biological_unit": {
+          "f32_sha256": "a419ab535b44f1b56caba05f2213ff98327fdd5e9f5d0866f52c02f368f71a93"
+        },
+        "integration_sample_status": {
+          "f32_sha256": "db9660a65ab93b22b926c39ab8cb0da8026e3b657c1c1caae5f664e1923db60e"
+        },
+        "integration_library_platform_coarse": {
+          "f32_sha256": "a419ab535b44f1b56caba05f2213ff98327fdd5e9f5d0866f52c02f368f71a93"
+        },
+        "LVL3": {
+          "f32_sha256": "db661bbb1d8566e60121c3cb00b263d0292e21189df9bd77462a803e6fdab4ff"
+        },
+        "LVL2": {
+          "f32_sha256": "ec70d240b96227389375f1ff19cb51ba342de137263c9d28dfbb1cb2ff3abcf0"
+        },
+        "LVL1": {
+          "f32_sha256": "3595b2ee2ae3fc933c329a743ae578c2fa2325fc207330609afc168047dbdfb6"
+        },
+        "LVL0": {
+          "f32_sha256": "9697ff3c52fcb6b411744bc7824221e7f82d0bf8c1837ecee66b11850f01e391"
         }
       },
-      "vector_fields": null,
-      "source": {
-        "name": "E-MTAB-10551",
-        "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-10551",
-        "citation": "Single-cell roadmap of human gonadal development. ArrayExpress study E-MTAB-10551."
-      },
-      "export_settings": {
-        "compression": 6,
-        "var_quantization": 8,
-        "obs_continuous_quantization": 8,
-        "obs_categorical_dtype": "uint8"
-      },
-      "obs_fields": [
-        {
-          "key": "age",
-          "kind": "continuous"
-        },
-        {
-          "key": "n_genes",
-          "kind": "continuous"
-        },
-        {
-          "key": "sample_ID",
-          "kind": "category",
-          "n_categories": 52
-        },
-        {
-          "key": "organ",
-          "kind": "category",
-          "n_categories": 1
-        },
-        {
-          "key": "cell_type",
-          "kind": "category",
-          "n_categories": 36
-        },
-        {
-          "key": "sex",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "sex_inferred",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "concatenated_integration_covariates",
-          "kind": "category",
-          "n_categories": 52
-        },
-        {
-          "key": "integration_donor",
-          "kind": "category",
-          "n_categories": 52
-        },
-        {
-          "key": "integration_biological_unit",
-          "kind": "category",
-          "n_categories": 1
-        },
-        {
-          "key": "integration_sample_status",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "integration_library_platform_coarse",
-          "kind": "category",
-          "n_categories": 1
-        },
-        {
-          "key": "LVL3",
-          "kind": "category",
-          "n_categories": 36
-        },
-        {
-          "key": "LVL2",
-          "kind": "category",
-          "n_categories": 20
-        },
-        {
-          "key": "LVL1",
-          "kind": "category",
-          "n_categories": 9
-        },
-        {
-          "key": "LVL0",
-          "kind": "category",
-          "n_categories": 4
-        }
-      ]
-    },
-    "gene_names_json_sha256": "8e20d6b725e7edcae338aff6d4b68d3d989bd7f81d8fc41bfe7eea2a69109684",
-    "gene_name_sets": [
-      {
-        "source": "gene_name",
-        "filled_from_index": 0,
-        "renamed": []
-      },
-      {
-        "source": "ensembl_gene_id",
-        "filled_from_index": 0,
-        "renamed": []
+      "store": {
+        "file_count": 1307,
+        "total_bytes": 107215183,
+        "sha256": "2873008673bff91fdb39e1a278195541df6ca08e18224f70a65aa92a4dae9cd9"
       }
-    ],
-    "alternative_gene_name_digests": [
-      "83366096c1f1c0945d9f6226e153a6803c1d455ec567acc55d858e24c32940a5"
-    ],
-    "semantic_payloads": {
-      "embeddings/0_1d.bin.gz": {
-        "raw_bytes": 878924,
-        "raw_sha256": "ccd0547bc86f42764493c3b754202cd7cf6171e6fd1c6fc7aa08d6c05b2799c0"
-      },
-      "embeddings/1_2d.bin.gz": {
-        "raw_bytes": 1757848,
-        "raw_sha256": "e1e1e3808c9dbbeaa3bffa3a225a38757088e9c1a90398413e3c7d84b1c2f4d0"
-      },
-      "embeddings/2_2d.bin.gz": {
-        "raw_bytes": 1757848,
-        "raw_sha256": "826a95be785b1f9b21dfcdda33f69f37f5260862e2af2348c5e6cfb93d668b03"
-      },
-      "embeddings/3_2d.bin.gz": {
-        "raw_bytes": 1757848,
-        "raw_sha256": "d003b2d0705c1d4920056ebdc7c0789d8d2222d1c822edbfba26bc3b39e191fc"
-      },
-      "embeddings/4_3d.bin.gz": {
-        "raw_bytes": 2636772,
-        "raw_sha256": "66aa4e38a8ed847fd3cc1051cacacc44ca84396364c26793776578f98f08bd99"
-      }
-    },
-    "expected_file_count": 5796,
-    "expected_total_bytes": 72969858,
-    "generation_sha256": "85b13e9cdd467b7d6bbae2e384487505de904f32e11a1243e915a33fc0193fcc"
+    }
   }
 }

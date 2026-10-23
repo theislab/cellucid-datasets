@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "dataset_id": "suo",
   "builder": "scripts/build_atlas.py",
   "source": {
@@ -14,10 +14,6 @@
   "citation": {
     "text": "Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11343."
   },
-  "recipe": [
-    "notebooks/suo_1_prepare_anndata.ipynb",
-    "notebooks/suo_2_export_cellucid.ipynb"
-  ],
   "ownership": {
     "source_owned": [
       "raw integer counts X and the ordered cell identifiers",
@@ -34,7 +30,7 @@
       "whitespace-padded organ labels, trimmed without moving any cell",
       "one 15-nearest-neighbour graph on obsm['scanvi'], which is also the published connectivity",
       "the 1D, 2D and 3D UMAPs of that one graph",
-      "gene symbols resolved through ensembl_to_hgnc.pickle; genes without one are not published"
+      "gene symbols resolved through ensembl_to_hgnc.pickle, the var index; genes without one are not published, and the upstream accession is kept as var['ensembl_gene_id']"
     ]
   },
   "selection": {
@@ -345,247 +341,114 @@
     "published_names_json_sha256": "eebabfe5626ab05164ccd5caf0d92d1c1ced4c56284bae6a49616e5ab0a1bf80"
   },
   "warning_contract": [],
-  "export_contract": {
-    "embeddings": {
+  "anndata_contract": {
+    "store": "anndata/suo.zarr",
+    "zarr_format": 2,
+    "uns_cellucid": {
+      "schema": 1,
+      "id": "suo",
+      "name": "Developing human immune system (Suo)",
+      "description": "Mapping the developing human immune system across organs",
+      "citation": {
+        "text": "Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11343."
+      },
+      "source": {
+        "name": "E-MTAB-11343",
+        "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11343"
+      },
+      "defaults": {
+        "embedding1d": "X_umap_1d",
+        "embedding2d": "X_umap_2d",
+        "embedding3d": "X_umap_3d",
+        "latentKey": "scanvi",
+        "centroidMinPoints": 10
+      }
+    },
+    "obsm": {
       "X_umap_1d": {
         "origin": "umap",
-        "dimension": 1,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 1
       },
       "X_umap_2d": {
         "origin": "umap",
-        "dimension": 2,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 2
       },
       "X_umap_3d": {
         "origin": "umap",
-        "dimension": 3,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 3
       },
       "X_pca": {
         "origin": "source",
-        "dimension": 2,
-        "label": "PCA (unintegrated)",
         "source_key": "X_pca",
         "columns": [
           0,
           1
         ]
+      },
+      "scanvi": {
+        "origin": "source",
+        "source_key": "scanvi",
+        "columns": null
       }
     },
-    "embedding_defaults": {
-      "2d": "X_umap_2d"
-    },
-    "centroid_outlier_quantile": 0.9,
-    "centroid_min_points": 10,
-    "identity": {
-      "cellucid_data_version": "0.9.3",
-      "id": "suo",
-      "name": "Developing human immune system (Suo)",
-      "description": "Mapping the developing human immune system across organs",
-      "created_at": "2026-10-18T00:00:00Z",
-      "stats": {
-        "n_cells": 561947,
-        "n_genes": 5103,
-        "n_obs_fields": 16,
-        "n_categorical_fields": 14,
-        "n_continuous_fields": 2,
-        "has_connectivity": true,
-        "n_edges": 6279148
+    "recorded": {
+      "expression": {
+        "shape": [
+          561947,
+          5103
+        ],
+        "nnz": 43691461,
+        "canonical_csr_sha256": "6872b439cb1caa1ca864e33af1942a238913449235ebb020034e17e1959f05f4"
       },
-      "embeddings": {
-        "default_dimension": 3,
-        "defaults": {
-          "1d": "X_umap_1d",
-          "2d": "X_umap_2d",
-          "3d": "X_umap_3d"
+      "outlier_quantiles": {
+        "sample_ID": {
+          "f32_sha256": "aa2ad343ec9033263235c684907eae0e9247069e0c055b2df214721d1e214f4c"
         },
-        "items": {
-          "X_umap_1d": {
-            "label": "UMAP",
-            "dimension": 1,
-            "file": "embeddings/0_1d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0
-              ]
-            }
-          },
-          "X_pca": {
-            "label": "PCA (unintegrated)",
-            "dimension": 2,
-            "file": "embeddings/1_2d.bin.gz",
-            "source": {
-              "key": "X_pca",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_2d": {
-            "label": "UMAP",
-            "dimension": 2,
-            "file": "embeddings/2_2d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_3d": {
-            "label": "UMAP",
-            "dimension": 3,
-            "file": "embeddings/3_3d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1,
-                2
-              ]
-            }
-          }
+        "organ": {
+          "f32_sha256": "9bcbdaff61b037517d29b8238998f141a4882b77af8e9e4abc340bd1f8bf8f68"
+        },
+        "cell_type": {
+          "f32_sha256": "bf70853adda6f502f26eaa4a550ac3858bc2b8efeed588172e142146431e0a40"
+        },
+        "sex": {
+          "f32_sha256": "31c2550e02dad39d49387fc1565027396f3f9d2c19094deb879d57241ac6d8a9"
+        },
+        "sex_inferred": {
+          "f32_sha256": "31c2550e02dad39d49387fc1565027396f3f9d2c19094deb879d57241ac6d8a9"
+        },
+        "concatenated_integration_covariates": {
+          "f32_sha256": "c1860e9353676a89de97065ce102c63627a4b7f8de36ca494a484238975ffb88"
+        },
+        "integration_donor": {
+          "f32_sha256": "aa2ad343ec9033263235c684907eae0e9247069e0c055b2df214721d1e214f4c"
+        },
+        "integration_biological_unit": {
+          "f32_sha256": "02107ad7049b5b1bf78f5d0192c97bdf03f0e0187d478c6f7aff708cfd6e0dea"
+        },
+        "integration_sample_status": {
+          "f32_sha256": "02107ad7049b5b1bf78f5d0192c97bdf03f0e0187d478c6f7aff708cfd6e0dea"
+        },
+        "integration_library_platform_coarse": {
+          "f32_sha256": "d1335c4b56884ff3da364eccca40c9d7f70e4b82cb85231925611ddef7e0a4d4"
+        },
+        "LVL3": {
+          "f32_sha256": "bf70853adda6f502f26eaa4a550ac3858bc2b8efeed588172e142146431e0a40"
+        },
+        "LVL2": {
+          "f32_sha256": "c032ecf049a3dec37da19f240591e813702625ff5ef7a39aa6c21c3490ca7497"
+        },
+        "LVL1": {
+          "f32_sha256": "9ec8fee6b9ac1ca7f3685f113601e320e9eb556ee832112fb2a7b642a085546f"
+        },
+        "LVL0": {
+          "f32_sha256": "02107ad7049b5b1bf78f5d0192c97bdf03f0e0187d478c6f7aff708cfd6e0dea"
         }
       },
-      "vector_fields": null,
-      "source": {
-        "name": "E-MTAB-11343",
-        "url": "https://www.ebi.ac.uk/biostudies/arrayexpress/studies/E-MTAB-11343",
-        "citation": "Mapping the developing human immune system across organs. ArrayExpress study E-MTAB-11343."
-      },
-      "export_settings": {
-        "compression": 6,
-        "var_quantization": 8,
-        "obs_continuous_quantization": 8,
-        "obs_categorical_dtype": "uint8"
-      },
-      "obs_fields": [
-        {
-          "key": "age",
-          "kind": "continuous"
-        },
-        {
-          "key": "n_genes",
-          "kind": "continuous"
-        },
-        {
-          "key": "sample_ID",
-          "kind": "category",
-          "n_categories": 25
-        },
-        {
-          "key": "organ",
-          "kind": "category",
-          "n_categories": 9
-        },
-        {
-          "key": "cell_type",
-          "kind": "category",
-          "n_categories": 69
-        },
-        {
-          "key": "sex",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "sex_inferred",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "concatenated_integration_covariates",
-          "kind": "category",
-          "n_categories": 33
-        },
-        {
-          "key": "integration_donor",
-          "kind": "category",
-          "n_categories": 25
-        },
-        {
-          "key": "integration_biological_unit",
-          "kind": "category",
-          "n_categories": 1
-        },
-        {
-          "key": "integration_sample_status",
-          "kind": "category",
-          "n_categories": 1
-        },
-        {
-          "key": "integration_library_platform_coarse",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "LVL3",
-          "kind": "category",
-          "n_categories": 69
-        },
-        {
-          "key": "LVL2",
-          "kind": "category",
-          "n_categories": 16
-        },
-        {
-          "key": "LVL1",
-          "kind": "category",
-          "n_categories": 4
-        },
-        {
-          "key": "LVL0",
-          "kind": "category",
-          "n_categories": 1
-        }
-      ]
-    },
-    "gene_names_json_sha256": "eebabfe5626ab05164ccd5caf0d92d1c1ced4c56284bae6a49616e5ab0a1bf80",
-    "gene_name_sets": [
-      {
-        "source": "gene_name",
-        "filled_from_index": 0,
-        "renamed": []
-      },
-      {
-        "source": "ensembl_gene_id",
-        "filled_from_index": 0,
-        "renamed": []
+      "store": {
+        "file_count": 1830,
+        "total_bytes": 215541873,
+        "sha256": "e1721ce78519ff96f0bda0e7f36b88834e5cb6a7a7b83b8d2eee23dd1eb0f843"
       }
-    ],
-    "alternative_gene_name_digests": [
-      "dae66086f6887046da167a93358fca7b8e3954535fadbaea4ad85c78e48a4e21"
-    ],
-    "semantic_payloads": {
-      "embeddings/0_1d.bin.gz": {
-        "raw_bytes": 2247788,
-        "raw_sha256": "269f3d993f7a414a1fd6b68e19baf934013605596891b90caf31fe8aff7e5cfc"
-      },
-      "embeddings/1_2d.bin.gz": {
-        "raw_bytes": 4495576,
-        "raw_sha256": "50f38a0a7936404d035570ff73a8d8892aee16bb15b819f3106ad5c1a28b9c20"
-      },
-      "embeddings/2_2d.bin.gz": {
-        "raw_bytes": 4495576,
-        "raw_sha256": "f5b8210094bb35ea796c660964dced193eb6c2ece687a0aeb591ebfc244ca887"
-      },
-      "embeddings/3_3d.bin.gz": {
-        "raw_bytes": 6743364,
-        "raw_sha256": "37789c502f26ba48c3a9a66b23c617a9377f4a74c26c6351b9c66b083dff2342"
-      }
-    },
-    "expected_file_count": 5144,
-    "expected_total_bytes": 126557388,
-    "generation_sha256": "8a708b5f8f4a586bd7daed5be1ea4fea5c6175bbff5db4cb4a86b8fc947f2b8b"
+    }
   }
 }

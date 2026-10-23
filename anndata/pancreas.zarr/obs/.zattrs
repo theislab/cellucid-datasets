@@ -1,0 +1,12 @@
+{
+  "encoding-type": "dataframe",
+  "encoding-version": "0.2.0",
+  "_index": "_index",
+  "column-order": [
+    "clusters_coarse",
+    "clusters",
+    "S_score",
+    "G2M_score",
+    "cell_type"
+  ]
+}

@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "purpose": "The one environment every published sample generation is built in. scripts/pinned_build.py checks all of it before a source is read, and both builders refuse to run anywhere it does not hold.",
+  "schema_version": 2,
+  "purpose": "The one environment every published sample store is built in. scripts/pinned_build.py checks all of it before a source is read, and both builders refuse to run anywhere it does not hold.",
   "requirements_lock": "requirements-build.lock",
   "requirements_lock_sha256": "fc363349688faca1621b1113c145135b2d085845cae7eb0ddf21ecaeb0a45625",
   "python_version": "3.12.13",
@@ -25,102 +25,58 @@
   "root_random_seed": 0,
   "cellucid_producer": {
     "repository": "https://github.com/theislab/cellucid-python",
-    "version": "0.9.3",
-    "source_tree_manifest_sha256": "241d4ebc1a5df2acce3ef0fd578473054bf1e9b2909435a998504bf1cec46f26",
+    "version": "0.9.5",
+    "source_tree_manifest_sha256": "bf6ddbc1e55bccf5171c78c5d95458f60f607364c8e9fa4a4ca9b98b0a3e00a9",
     "manifest_definition": "SHA-256 of the `shasum -a 256` manifest over exactly the source_files paths below, in the listed LC_ALL=C order, using repository-relative POSIX paths.",
-    "manifest_scope": "Exactly the producer modules the export path executes: the cellucid entries sys.modules holds once cellucid.prepare_data is imported. Modules outside that set - the Jupyter viewer, the HTTP server, session bundles, the web cache, the AnnData adapter, the command line - cannot reach the bytes prepare() writes, so pinning them reports a difference where the export has none. The builder recomputes the executed set on every run and refuses to build when the export path reaches a module this list omits, so the list cannot silently stop covering the producer. Every path is named rather than matched by a directory pattern, so a producer file that is renamed or removed fails by name. The interpreter, the exact installed distribution set and the producer release are pinned separately by python_version, requirements_lock_sha256 and version.",
+    "manifest_scope": "Exactly the producer modules cellucid.prepare() executes: the cellucid entries sys.modules holds once cellucid.prepare is imported. Modules outside that set - the Jupyter viewer, the HTTP server, session bundles, the web cache, the command line - cannot reach the bytes prepare() writes, so pinning them reports a difference where the store has none. The builder recomputes the executed set on every run and refuses to build when prepare() reaches a module this list omits, so the list cannot silently stop covering the producer. Every path is named rather than matched by a directory pattern, so a producer file that is renamed or removed fails by name. The interpreter, the exact installed distribution set and the producer release are pinned separately by python_version, requirements_lock_sha256 and version.",
     "source_files": [
       {
         "path": "src/cellucid/__init__.py",
-        "sha256": "73061fe8745177cc6021d1a90d19ef042b794133312ef869bbd95ea3577a0220"
+        "sha256": "cebf4bc26be6940b9aa55fc5c33f5069dcde68015603625f780ebc8880b6b74d"
       },
       {
-        "path": "src/cellucid/_byte_order.py",
-        "sha256": "e0d221adbdf98f1507467474f938db00c15dff8473f57c9c4059499237bc8c1f"
-      },
-      {
-        "path": "src/cellucid/_compression.py",
-        "sha256": "017d8250dab7e69cdf70f6d5b3ff764d91292151814bcdffec01ba28dec28e39"
+        "path": "src/cellucid/_anndata_files.py",
+        "sha256": "7a638d74698a888dfc1ba6dbf1accadb12d04d66e830c0cb755469216a68b31c"
       },
       {
         "path": "src/cellucid/_console.py",
-        "sha256": "b6c19ba1e0ad2676c4716d51ef6a57e7f2acac57159ce3242f1b6ac14946da30"
+        "sha256": "f882fe6edf63383ab33cd207aa4b7c795b5e3e6c3ac8483add73482c316c6e3e"
       },
       {
         "path": "src/cellucid/_contracts.py",
-        "sha256": "ecb9ca6e47a4d64d04f868532816c99c9c01bbca4abb7625d046d2032c6e2d93"
+        "sha256": "3fbf1fd240d21900da219d1df819096932bb3b172980c09ca7f38aea788cf386"
       },
       {
-        "path": "src/cellucid/connectivity_contract.py",
-        "sha256": "fba890bc053bae2f6389c5088e0ee58db0199ee0d1ab60687ebf660cadf312cb"
+        "path": "src/cellucid/_launch_defaults.py",
+        "sha256": "83aa662873d11361d9d71351ddef8380cec09c46299f98de0dca63ef246aa8ee"
       },
       {
-        "path": "src/cellucid/continuous_payload_diagnosis.py",
-        "sha256": "984fd0ca905418c85e65efd3e12de3dfdeb0fa02e1d1d8297b8a39a51d350463"
+        "path": "src/cellucid/_non_finite.py",
+        "sha256": "1e8f8584a44a911ec48ce82ecc45b27cfbbe8fac3d49a844311959fe7f68def0"
       },
       {
         "path": "src/cellucid/data_mapping.py",
-        "sha256": "24a3227afa4e561146ecb0ee045fc19de2b3f78f28500fdc37b440b251893ec7"
+        "sha256": "09bdf88e1312bf531ed3b29f7e59e548ea59dbe67cc280c2c563eba9737df778"
       },
       {
         "path": "src/cellucid/prepare_data/__init__.py",
-        "sha256": "e9b68af3972d785dfe5b4b06b6efc98535dbb5dca4d5986c23126d733b876631"
+        "sha256": "6f10725a7d11378fd02ad2546b3a024126fb366e419d927d889986605c63b16b"
       },
       {
-        "path": "src/cellucid/prepare_data/_arrays.py",
-        "sha256": "1ec3ea724bddb1ee99686c3e73f4957af0db98244f79920fedcc5668efc0e0f5"
+        "path": "src/cellucid/prepare_data/_inputs.py",
+        "sha256": "ca43f0d98ae1137589560766a4f1f91f9ce21b36bae046a01c59cc3c04e1e708"
       },
       {
-        "path": "src/cellucid/prepare_data/_binary_io.py",
-        "sha256": "c9a9df2d2f6c8ef0591d48e26c878faedc6b8c9fda4ba18ca0924eccca5a96f7"
+        "path": "src/cellucid/prepare_data/_outliers.py",
+        "sha256": "e9f7d7c7aab91f9fbfb211189882f4c6eb07b8b239fc5b85e801983f9d95f74c"
       },
       {
-        "path": "src/cellucid/prepare_data/_catalog.py",
-        "sha256": "7e8ae4daaef7d519e019333c6b23302d81114e6bbc34eb3c13dfb149a19b2e46"
+        "path": "src/cellucid/prepare_data/_prepare.py",
+        "sha256": "bbe1678edb0b3648f11db875f7e3919f3c25bcf21b40048031541bfd91108997"
       },
       {
-        "path": "src/cellucid/prepare_data/_categories.py",
-        "sha256": "e4b97941bb716f77d151212970b5466ed63ce3f9aa0ce35f847ac629460110ae"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_centroids.py",
-        "sha256": "c712a671517e5a3b8b9b0f6bda62364da66d7077fdf39a1f7e416aa4d06ea454"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_embeddings.py",
-        "sha256": "6ca91d6e6dba7716fe2d01382248eb9ee8ec61496e07f737997a4690652a4e9b"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_export.py",
-        "sha256": "e73975058453340aa0ae0d13a63a6b22e4fbe3d6aeedb83596fac4353be1ed4c"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_filesystem.py",
-        "sha256": "b953cc142714562709bdb4710c18d022e93a5894b063286d56640c240a688d37"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_generation.py",
-        "sha256": "bad9a78f5f3f84b09dd09dc00b33a2a5de597bddc795cc6eb142cd5cc6271ecf"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_locking.py",
-        "sha256": "d32aee416fec59114ffcdb52ad476d089134663404f4f9a99af52d6fa6009e45"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_manifest.py",
-        "sha256": "47143e271ac5307119cda6660d50b5088f497296cfbcd6f2669204ee07a4921c"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_quantization.py",
-        "sha256": "f4b06b20b20a2510c1dc7b146b8584996fa9eae04bb72eee4332d803a0be7259"
-      },
-      {
-        "path": "src/cellucid/prepare_data/_transaction.py",
-        "sha256": "b7952c15049dc2b4dc7cd829e5e29693c063b038787d4438128db16807ad603a"
-      },
-      {
-        "path": "src/cellucid/vector_fields.py",
-        "sha256": "4efa2a40eb6fa89c3d224c1fb5a06ec7486143809211748444e5d931ce1ad3b0"
+        "path": "src/cellucid/prepare_data/_store.py",
+        "sha256": "7cfa903aabae012f5049c7cb99c9a11929d93e16802bdf3602979ff7c6fbecd9"
       }
     ]
   },

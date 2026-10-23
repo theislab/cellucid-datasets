@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "dataset_id": "pancreas",
   "builder": "scripts/build_pancreas.py",
   "source": {
@@ -24,7 +24,7 @@
       "ordered cell and gene identifiers",
       "all four obs columns and their category order",
       "the highly_variable_genes var column",
-      "X_pca latent coordinates, whose first two components are also published as the PCA view",
+      "X_pca latent coordinates, published whole as obsm['X_pca'] and the latent space",
       "X_umap two-dimensional coordinates",
       "the weighted source connectivity graph"
     ],
@@ -344,38 +344,51 @@
       }
     }
   },
-  "export_contract": {
-    "embeddings": {
-      "X_pca": {
-        "array": "source_pca",
-        "label": "PCA",
-        "source_key": "X_pca",
-        "columns": [
-          0,
-          1
-        ]
+  "anndata_contract": {
+    "store": "anndata/pancreas.zarr",
+    "zarr_format": 2,
+    "uns_cellucid": {
+      "schema": 1,
+      "id": "pancreas",
+      "name": "Pancreatic endocrinogenesis (scVelo)",
+      "description": "Mouse pancreatic epithelial and Ngn3-Venus fusion cells at embryonic day 15.5, spanning endocrine progenitors and differentiated endocrine fates.",
+      "citation": {
+        "text": "Bastidas-Ponce A, Tritschler S, Dony L, Scheibner K, Tarquis-Medina M, Salinno C, Schirge S, Burtscher I, Böttcher A, Theis FJ, Lickert H, Bakhti M. Comprehensive single cell mRNA profiling reveals a detailed roadmap for pancreatic endocrinogenesis. Development. 2019;146(12):dev173849. doi:10.1242/dev.173849.",
+        "url": "https://doi.org/10.1242/dev.173849"
       },
-      "X_umap": {
-        "array": "source_umap_2d",
-        "label": "UMAP",
-        "source_key": "X_umap",
-        "columns": null
+      "source": {
+        "name": "scVelo pancreas (GSE132188 E15.5)",
+        "url": "https://raw.githubusercontent.com/theislab/scvelo_notebooks/f6cad69fd509be44c8453205309f4c3c3c37ba34/data/Pancreas/endocrinogenesis_day15.h5ad"
       },
-      "X_umap_1d": {
-        "array": "derived_umap_1d",
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
-      },
-      "X_umap_3d": {
-        "array": "derived_umap_3d",
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+      "defaults": {
+        "embedding1d": "X_umap_1d",
+        "embedding2d": "X_umap",
+        "embedding3d": "X_umap_3d",
+        "latentKey": "X_pca",
+        "vectorFieldDefault": "velocity",
+        "obsKeys": [
+          "clusters_coarse",
+          "clusters",
+          "S_score",
+          "G2M_score",
+          "cell_type"
+        ],
+        "centroidMinPoints": 10
       }
     },
-    "embedding_defaults": {
-      "2d": "X_umap"
+    "obsm": {
+      "X_umap_1d": {
+        "array": "derived_umap_1d"
+      },
+      "X_umap": {
+        "array": "source_umap_2d"
+      },
+      "X_umap_3d": {
+        "array": "derived_umap_3d"
+      },
+      "X_pca": {
+        "array": "source_pca"
+      }
     },
     "vector_field": "velocity",
     "vector_field_bindings": {
@@ -383,8 +396,6 @@
       "X_umap": "velocity_umap_2d",
       "X_umap_3d": "velocity_umap_3d"
     },
-    "centroid_outlier_quantile": 0.95,
-    "centroid_min_points": 10,
     "derived_obs_fields": {
       "cell_type": {
         "ownership": "derived convenience alias",
@@ -393,173 +404,31 @@
         "codes_i32_sha256": "a03b4445359a4c0cec466b0734def4f63e9a6011baaeccc9cb8ae7265b131f99"
       }
     },
-    "identity": {
-      "cellucid_data_version": "0.9.3",
-      "id": "pancreas",
-      "name": "Pancreatic endocrinogenesis (scVelo)",
-      "description": "Mouse pancreatic epithelial and Ngn3-Venus fusion cells at embryonic day 15.5, spanning endocrine progenitors and differentiated endocrine fates.",
-      "created_at": "2026-10-18T00:00:00Z",
-      "stats": {
-        "n_cells": 3696,
-        "n_genes": 3753,
-        "n_obs_fields": 5,
-        "n_categorical_fields": 3,
-        "n_continuous_fields": 2,
-        "has_connectivity": true,
-        "n_edges": 33476
+    "recorded": {
+      "expression": {
+        "shape": [
+          3696,
+          3753
+        ],
+        "nnz": 2237492,
+        "canonical_csr_sha256": "dc5ba1a045acc13bcb915aa1872883aab1d33d2e470f264a94f803f6003454da"
       },
-      "embeddings": {
-        "default_dimension": 3,
-        "defaults": {
-          "1d": "X_umap_1d",
-          "2d": "X_umap",
-          "3d": "X_umap_3d"
+      "outlier_quantiles": {
+        "clusters_coarse": {
+          "f32_sha256": "649a4ccb07e2ef67d0277c6bd8ec0b3e924441835f3d530b90995d07598c9f17"
         },
-        "items": {
-          "X_umap_1d": {
-            "label": "UMAP",
-            "dimension": 1,
-            "file": "embeddings/0_1d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0
-              ]
-            }
-          },
-          "X_pca": {
-            "label": "PCA",
-            "dimension": 2,
-            "file": "embeddings/1_2d.bin.gz",
-            "source": {
-              "key": "X_pca",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap": {
-            "label": "UMAP",
-            "dimension": 2,
-            "file": "embeddings/2_2d.bin.gz",
-            "source": {
-              "key": "X_umap",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_3d": {
-            "label": "UMAP",
-            "dimension": 3,
-            "file": "embeddings/3_3d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1,
-                2
-              ]
-            }
-          }
+        "clusters": {
+          "f32_sha256": "6b7ccd86c1ecf1fd56e5cd73695900d663cad98037a46480863a697452b3b0f4"
+        },
+        "cell_type": {
+          "f32_sha256": "6b7ccd86c1ecf1fd56e5cd73695900d663cad98037a46480863a697452b3b0f4"
         }
       },
-      "vector_fields": {
-        "default_field": "velocity",
-        "fields": {
-          "velocity": {
-            "label": "velocity",
-            "files": {
-              "X_umap_1d": "vectors/0_0.bin.gz",
-              "X_umap": "vectors/0_2.bin.gz",
-              "X_umap_3d": "vectors/0_3.bin.gz"
-            }
-          }
-        }
-      },
-      "source": {
-        "name": "scVelo pancreas (GSE132188 E15.5)",
-        "url": "https://raw.githubusercontent.com/theislab/scvelo_notebooks/f6cad69fd509be44c8453205309f4c3c3c37ba34/data/Pancreas/endocrinogenesis_day15.h5ad",
-        "citation": "Bastidas-Ponce A, Tritschler S, Dony L, Scheibner K, Tarquis-Medina M, Salinno C, Schirge S, Burtscher I, Böttcher A, Theis FJ, Lickert H, Bakhti M. Comprehensive single cell mRNA profiling reveals a detailed roadmap for pancreatic endocrinogenesis. Development. 2019;146(12):dev173849. doi:10.1242/dev.173849."
-      },
-      "export_settings": {
-        "compression": 6,
-        "var_quantization": 8,
-        "obs_continuous_quantization": 8,
-        "obs_categorical_dtype": "uint8"
-      },
-      "obs_fields": [
-        {
-          "key": "S_score",
-          "kind": "continuous"
-        },
-        {
-          "key": "G2M_score",
-          "kind": "continuous"
-        },
-        {
-          "key": "clusters_coarse",
-          "kind": "category",
-          "n_categories": 5
-        },
-        {
-          "key": "clusters",
-          "kind": "category",
-          "n_categories": 8
-        },
-        {
-          "key": "cell_type",
-          "kind": "category",
-          "n_categories": 8
-        }
-      ]
-    },
-    "gene_names_json_sha256": "9c3d31446e03975ec8d386b8d952e3415a7d27fbd8e58c0c57651493903a4de7",
-    "gene_name_sets": [
-      {
-        "source": "gene_name",
-        "filled_from_index": 0,
-        "renamed": []
+      "store": {
+        "file_count": 241,
+        "total_bytes": 3776782,
+        "sha256": "4efab9a5f706bac1c9a3bcbc4147b373dba9770233e7c87b45aa240c8b1aa183"
       }
-    ],
-    "alternative_gene_name_digests": [],
-    "semantic_payloads": {
-      "embeddings/0_1d.bin.gz": {
-        "raw_bytes": 14784,
-        "raw_sha256": "7800daf21b1c8dd181b9173334e4a9a117a7de6ed4d82c4460bc794d9a39cf4d"
-      },
-      "embeddings/1_2d.bin.gz": {
-        "raw_bytes": 29568,
-        "raw_sha256": "2e0c1e1a2775b4b45b814c15f7d6fdaaccd92b6963ad1baa7848f93386b171f7"
-      },
-      "embeddings/2_2d.bin.gz": {
-        "raw_bytes": 29568,
-        "raw_sha256": "d7c72cf2437f0e185ce720b50a976b2575d9a04f72ebdd1f5c9eb65c8636ce1b"
-      },
-      "embeddings/3_3d.bin.gz": {
-        "raw_bytes": 44352,
-        "raw_sha256": "f67c983c7332b215280cea009168be3a850360f07e62a8a06b66f78205986a8c"
-      },
-      "vectors/0_0.bin.gz": {
-        "raw_bytes": 14784,
-        "raw_sha256": "877146aaf6014a2a2d059e5095bc6bc7faf64fcf44177a325b937522229a0f44",
-        "nonzero_rows": 3694
-      },
-      "vectors/0_2.bin.gz": {
-        "raw_bytes": 29568,
-        "raw_sha256": "e81f788d7a51adc1ce50a3a2198a001b3c973f0e2ab94eeb18ff5bc0527a554d",
-        "nonzero_rows": 3696
-      },
-      "vectors/0_3.bin.gz": {
-        "raw_bytes": 44352,
-        "raw_sha256": "a0f30a0c44b1e2b6675589c09030b32e3d6932a636668ed366fd26ea0a26e199",
-        "nonzero_rows": 3696
-      }
-    },
-    "expected_file_count": 3775,
-    "expected_total_bytes": 2528678,
-    "generation_sha256": "44df8b9eb4f087c0a230043225637bbdca5495cf403049b030d3cc9504332638"
+    }
   }
 }

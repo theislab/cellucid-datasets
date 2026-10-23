@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "dataset_id": "kanemaru",
   "builder": "scripts/build_atlas.py",
   "source": {
@@ -15,10 +15,6 @@
   "citation": {
     "text": "Cranley J, Kanemaru K, Bayraktar S, Knight-Schrijver V, et al. Developmental Dynamics of Human Cardiogenesis: A multi-omic reference and its disruption in Trisomy 21. bioRxiv. 2024. doi:10.1101/2024.04.29.591736."
   },
-  "recipe": [
-    "notebooks/kanemaru_1_prepare_anndata.ipynb",
-    "notebooks/kanemaru_2_export_cellucid.ipynb"
-  ],
   "ownership": {
     "source_owned": [
       "raw integer counts X and the ordered cell identifiers",
@@ -33,7 +29,7 @@
       "age as a continuous field, converted from its categorical numeric strings",
       "one 15-nearest-neighbour graph on obsm['scvi'], which is also the published connectivity",
       "the 1D, 2D and 3D UMAPs of that one graph",
-      "gene symbols resolved through ensembl_to_hgnc.pickle; genes without one are not published"
+      "gene symbols resolved through ensembl_to_hgnc.pickle, the var index; genes without one are not published, and the upstream accession is kept as var['ensembl_gene_id']"
     ]
   },
   "selection": null,
@@ -324,270 +320,120 @@
     "published_names_json_sha256": "a9d54fb6130bd943b1a3864921a320f927aa3b639a11241f7d10f9d12a1d287c"
   },
   "warning_contract": [],
-  "export_contract": {
-    "embeddings": {
+  "anndata_contract": {
+    "store": "anndata/kanemaru.zarr",
+    "zarr_format": 2,
+    "uns_cellucid": {
+      "schema": 1,
+      "id": "kanemaru",
+      "name": "Developing human heart (Kanemaru)",
+      "description": "Developmental Dynamics of Human Cardiogenesis: A multi-omic reference and its disruption in Trisomy 21",
+      "citation": {
+        "text": "Cranley J, Kanemaru K, Bayraktar S, Knight-Schrijver V, et al. Developmental Dynamics of Human Cardiogenesis: A multi-omic reference and its disruption in Trisomy 21. bioRxiv. 2024. doi:10.1101/2024.04.29.591736.",
+        "url": "https://doi.org/10.1101/2024.04.29.591736"
+      },
+      "source": {
+        "name": "Developing Heart Cell Atlas",
+        "url": "https://www.heartcellatlas.org/foetal.html"
+      },
+      "defaults": {
+        "embedding1d": "X_umap_1d",
+        "embedding2d": "X_umap_2d",
+        "embedding3d": "X_umap_3d",
+        "latentKey": "scvi",
+        "centroidMinPoints": 10
+      }
+    },
+    "obsm": {
       "X_umap_1d": {
         "origin": "umap",
-        "dimension": 1,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 1
       },
       "X_umap_2d": {
         "origin": "umap",
-        "dimension": 2,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 2
       },
       "X_umap_3d": {
         "origin": "umap",
-        "dimension": 3,
-        "label": "UMAP",
-        "source_key": null,
-        "columns": null
+        "dimension": 3
       },
       "X_umap": {
         "origin": "source",
-        "dimension": 2,
-        "label": "UMAP (source file)",
         "source_key": "X_umap",
         "columns": null
       },
       "X_pca": {
         "origin": "source",
-        "dimension": 2,
-        "label": "PCA (unintegrated)",
         "source_key": "X_pca",
         "columns": [
           0,
           1
         ]
+      },
+      "scvi": {
+        "origin": "source",
+        "source_key": "scvi",
+        "columns": null
       }
     },
-    "embedding_defaults": {
-      "2d": "X_umap_2d"
-    },
-    "centroid_outlier_quantile": 0.9,
-    "centroid_min_points": 10,
-    "identity": {
-      "cellucid_data_version": "0.9.3",
-      "id": "kanemaru",
-      "name": "Developing human heart (Kanemaru)",
-      "description": "Developmental Dynamics of Human Cardiogenesis: A multi-omic reference and its disruption in Trisomy 21",
-      "created_at": "2026-10-18T00:00:00Z",
-      "stats": {
-        "n_cells": 131636,
-        "n_genes": 3691,
-        "n_obs_fields": 16,
-        "n_categorical_fields": 14,
-        "n_continuous_fields": 2,
-        "has_connectivity": true,
-        "n_edges": 1546824
+    "recorded": {
+      "expression": {
+        "shape": [
+          131636,
+          3691
+        ],
+        "nnz": 7942348,
+        "canonical_csr_sha256": "8e710fd5070c0ee3a3c4a7af3ac696f665e773b4c0714f5ded72999f2b83f81c"
       },
-      "embeddings": {
-        "default_dimension": 3,
-        "defaults": {
-          "1d": "X_umap_1d",
-          "2d": "X_umap_2d",
-          "3d": "X_umap_3d"
+      "outlier_quantiles": {
+        "sample_ID": {
+          "f32_sha256": "024960a9d167564fe9376ffbb7aa76674409e0e6ac683d48666b7281aef68040"
         },
-        "items": {
-          "X_umap_1d": {
-            "label": "UMAP",
-            "dimension": 1,
-            "file": "embeddings/0_1d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0
-              ]
-            }
-          },
-          "X_pca": {
-            "label": "PCA (unintegrated)",
-            "dimension": 2,
-            "file": "embeddings/1_2d.bin.gz",
-            "source": {
-              "key": "X_pca",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap": {
-            "label": "UMAP (source file)",
-            "dimension": 2,
-            "file": "embeddings/2_2d.bin.gz",
-            "source": {
-              "key": "X_umap",
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_2d": {
-            "label": "UMAP",
-            "dimension": 2,
-            "file": "embeddings/3_2d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1
-              ]
-            }
-          },
-          "X_umap_3d": {
-            "label": "UMAP",
-            "dimension": 3,
-            "file": "embeddings/4_3d.bin.gz",
-            "source": {
-              "key": null,
-              "columns": [
-                0,
-                1,
-                2
-              ]
-            }
-          }
+        "organ": {
+          "f32_sha256": "a28bc8e0acd69416aa3448280fbae8d9934d11c22553b3ab985cb7ba6036da6c"
+        },
+        "cell_type": {
+          "f32_sha256": "3f87dc60edf227869713b62b55c067208621328d1b92d56adb08a872a6d8e609"
+        },
+        "sex": {
+          "f32_sha256": "9117fb87be4e8b85e30b09b54b88b02920a320c6ce7237f4e49d54a2969cde10"
+        },
+        "sex_inferred": {
+          "f32_sha256": "9117fb87be4e8b85e30b09b54b88b02920a320c6ce7237f4e49d54a2969cde10"
+        },
+        "concatenated_integration_covariates": {
+          "f32_sha256": "024960a9d167564fe9376ffbb7aa76674409e0e6ac683d48666b7281aef68040"
+        },
+        "integration_donor": {
+          "f32_sha256": "024960a9d167564fe9376ffbb7aa76674409e0e6ac683d48666b7281aef68040"
+        },
+        "integration_biological_unit": {
+          "f32_sha256": "c58f75958fe1c515a69485dbe1792e3b738816c8b8b472fb6e7f727f70e48ecd"
+        },
+        "integration_sample_status": {
+          "f32_sha256": "c58f75958fe1c515a69485dbe1792e3b738816c8b8b472fb6e7f727f70e48ecd"
+        },
+        "integration_library_platform_coarse": {
+          "f32_sha256": "c58f75958fe1c515a69485dbe1792e3b738816c8b8b472fb6e7f727f70e48ecd"
+        },
+        "LVL3": {
+          "f32_sha256": "3f87dc60edf227869713b62b55c067208621328d1b92d56adb08a872a6d8e609"
+        },
+        "LVL2": {
+          "f32_sha256": "ce4845f19ff6e0e4f8cccd36c20dcb2be6fa3f97e21969a45ab5b111cac952fa"
+        },
+        "LVL1": {
+          "f32_sha256": "270ee76629af0741454f01d538751d7d3cbdf8584fa7b6dcfab51de26c58cef8"
+        },
+        "LVL0": {
+          "f32_sha256": "7e7c00c63d3e2ec8ff75aa5a5574275ed3d95f15aacf8e2f235a176d631ab223"
         }
       },
-      "vector_fields": null,
-      "source": {
-        "name": "Developing Heart Cell Atlas",
-        "url": "https://www.heartcellatlas.org/foetal.html",
-        "citation": "Cranley J, Kanemaru K, Bayraktar S, Knight-Schrijver V, et al. Developmental Dynamics of Human Cardiogenesis: A multi-omic reference and its disruption in Trisomy 21. bioRxiv. 2024. doi:10.1101/2024.04.29.591736."
-      },
-      "export_settings": {
-        "compression": 6,
-        "var_quantization": 8,
-        "obs_continuous_quantization": 8,
-        "obs_categorical_dtype": "uint8"
-      },
-      "obs_fields": [
-        {
-          "key": "age",
-          "kind": "continuous"
-        },
-        {
-          "key": "n_genes",
-          "kind": "continuous"
-        },
-        {
-          "key": "sample_ID",
-          "kind": "category",
-          "n_categories": 10
-        },
-        {
-          "key": "organ",
-          "kind": "category",
-          "n_categories": 1
-        },
-        {
-          "key": "cell_type",
-          "kind": "category",
-          "n_categories": 46
-        },
-        {
-          "key": "sex",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "sex_inferred",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "concatenated_integration_covariates",
-          "kind": "category",
-          "n_categories": 10
-        },
-        {
-          "key": "integration_donor",
-          "kind": "category",
-          "n_categories": 10
-        },
-        {
-          "key": "integration_biological_unit",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "integration_sample_status",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "integration_library_platform_coarse",
-          "kind": "category",
-          "n_categories": 2
-        },
-        {
-          "key": "LVL3",
-          "kind": "category",
-          "n_categories": 46
-        },
-        {
-          "key": "LVL2",
-          "kind": "category",
-          "n_categories": 20
-        },
-        {
-          "key": "LVL1",
-          "kind": "category",
-          "n_categories": 11
-        },
-        {
-          "key": "LVL0",
-          "kind": "category",
-          "n_categories": 4
-        }
-      ]
-    },
-    "gene_names_json_sha256": "a9d54fb6130bd943b1a3864921a320f927aa3b639a11241f7d10f9d12a1d287c",
-    "gene_name_sets": [
-      {
-        "source": "gene_name",
-        "filled_from_index": 0,
-        "renamed": []
-      },
-      {
-        "source": "ensembl_gene_id",
-        "filled_from_index": 0,
-        "renamed": []
+      "store": {
+        "file_count": 567,
+        "total_bytes": 50165931,
+        "sha256": "37085ca61e816b053669741beed5051b2fb0c1479e13eee9c1571a9195e49d29"
       }
-    ],
-    "alternative_gene_name_digests": [
-      "95ba865fc9192913b69ceaf0aa5652184c5ca257432058e2221767a42e246524"
-    ],
-    "semantic_payloads": {
-      "embeddings/0_1d.bin.gz": {
-        "raw_bytes": 526544,
-        "raw_sha256": "18f4f0ffe7ddaf4f74230983bc292b40dd0ec873fc2fe82417d905316014ad95"
-      },
-      "embeddings/1_2d.bin.gz": {
-        "raw_bytes": 1053088,
-        "raw_sha256": "535664a53e70459b9d036a5dd60336744a3fdf6ce1edea50a61c438e5f640036"
-      },
-      "embeddings/2_2d.bin.gz": {
-        "raw_bytes": 1053088,
-        "raw_sha256": "6e4a45f5cc0327a68b7e041926a3218676d8724a11fa1ef3160b802571ddffa8"
-      },
-      "embeddings/3_2d.bin.gz": {
-        "raw_bytes": 1053088,
-        "raw_sha256": "0fc2839c14ae08df724a24be43620af3ebe8b928fc539861c26289dcd514458a"
-      },
-      "embeddings/4_3d.bin.gz": {
-        "raw_bytes": 1579632,
-        "raw_sha256": "54eddd6b81c11aa995acd6ec5f6e06cf2631adcb23437dbdb00bde6101317c49"
-      }
-    },
-    "expected_file_count": 3733,
-    "expected_total_bytes": 30168639,
-    "generation_sha256": "7243e5e770129ece31d90846a53e8fe3de7695e1e852a467f6ad4e8898944d0e"
+    }
   }
 }
