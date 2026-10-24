@@ -7,8 +7,8 @@
       "path": "suo.zarr/",
       "session": {
         "path": "suo.cellucid-session",
-        "bytes": 4223,
-        "sha256": "c4d848b70fe7378bb7db41b2aea204e3ffef6e6cd70132764fcbdeb5f1353945"
+        "bytes": 4272,
+        "sha256": "a326506e1eede81c6cc1842daf4c34154076bf9792318817125fe298dcfeff2a"
       }
     },
     {
@@ -16,8 +16,8 @@
       "path": "garcia.zarr/",
       "session": {
         "path": "garcia.cellucid-session",
-        "bytes": 4246,
-        "sha256": "b50327c154785fb5dbc9e0fe5a99b104643753c1b80f88642251c00e4ebcaa64"
+        "bytes": 4297,
+        "sha256": "3eb27c71ae7e5d0c85c3260624e13061a61925e54a3af9776bb02698c7c92645"
       }
     },
     {
@@ -25,8 +25,8 @@
       "path": "he.zarr/",
       "session": {
         "path": "he.cellucid-session",
-        "bytes": 4228,
-        "sha256": "ed1716a8750e2037b382db75e888eaafdeb49e91d7a92f1a132d2319cef5c7c4"
+        "bytes": 4291,
+        "sha256": "d58ddca8c0eaf824cd7c5b99e8f08dbfa2c00099e25c28a829639e6c26fe15d1"
       }
     },
     {
@@ -34,8 +34,8 @@
       "path": "kanemaru.zarr/",
       "session": {
         "path": "kanemaru.cellucid-session",
-        "bytes": 4256,
-        "sha256": "0b77c5df1f405900c2bc96d8ad67bf04687933d508aba6510ccd6d181706fe02"
+        "bytes": 4319,
+        "sha256": "dbe97741eacf1760b2015e35be3043814ef075962668462f167e6962e2571824"
       }
     },
     {
@@ -43,8 +43,8 @@
       "path": "pancreas.zarr/",
       "session": {
         "path": "pancreas.cellucid-session",
-        "bytes": 4432,
-        "sha256": "9f0663b603ee1edcda59e41e78716edd01444721bfc1c23c2d35baf0187b6ff1"
+        "bytes": 4495,
+        "sha256": "3b8f564fead7ec796ce4b5155876e0eac4de9f7c1a9902c860c311edbe278bd6"
       }
     }
   ]

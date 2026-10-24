@@ -24,7 +24,10 @@ const CATALOG = JSON.parse(await readFile(path.join(ANNDATA_ROOT, 'datasets.json
  * stale. The digests and cameras are the ones the reviewed presets carried
  * before the samples became AnnData stores: the stores lay out the same cells
  * at the same coordinates, and each preset was re-captured in the viewer on
- * its store with that reviewed view restored.
+ * its store with that reviewed view restored. Suo's and Garcia's cameras sat
+ * inside their clouds (orbit radius 0.88 and 1.11 on coordinates normalized
+ * to about [-1, 1]); they keep their reviewed direction and are pulled back
+ * to radius 3 and 2.6, which frame the whole cloud.
  */
 const EXPECTED = Object.freeze({
   suo: Object.freeze({
@@ -34,19 +37,19 @@ const EXPECTED = Object.freeze({
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
-        radius: 0.8817669428902989,
-        targetRadius: 0.8817669428902989,
+        radius: 3,
+        targetRadius: 3,
         theta: 2.861307695117691,
         phi: 1.7024549527672228,
         target: Object.freeze([0, 0, 0]),
       }),
       freefly: Object.freeze({
         position: Object.freeze([
-          -0.8400240003559275,
-          -0.11575712437608862,
-          0.24181172129635684,
+          -2.8579796752272966,
+          -0.3938357815841482,
+          0.8227062374454679,
         ]),
-        yaw: -0.2802849584721023,
+        yaw: -0.2802849584721022,
         pitch: 0.1316586259723262,
       }),
     }),
@@ -58,20 +61,20 @@ const EXPECTED = Object.freeze({
     camera: Object.freeze({
       navigationMode: 'orbit',
       orbit: Object.freeze({
-        radius: 1.106010096941288,
-        targetRadius: 1.106010096941288,
+        radius: 2.6,
+        targetRadius: 2.6,
         theta: 1.4576226052247212,
         phi: 1.79557114622099,
         target: Object.freeze([0, 0, 0]),
       }),
       freefly: Object.freeze({
         position: Object.freeze([
-          0.12176219378593962,
-          -0.2465151085448905,
-          1.0712901586216563,
+          0.2862376254240006,
+          -0.579505814629773,
+          2.518380636957391,
         ]),
         yaw: -1.6839700483650721,
-        pitch: 0.2247748194260934,
+        pitch: 0.22477481942609343,
       }),
     }),
   }),
@@ -151,11 +154,11 @@ const EXPECTED = Object.freeze({
 
 /** The published bytes of each preset, which `anndata/datasets.json` advertises. */
 const EXPECTED_PRESET_SHA256 = Object.freeze({
-  suo: 'c4d848b70fe7378bb7db41b2aea204e3ffef6e6cd70132764fcbdeb5f1353945',
-  garcia: 'b50327c154785fb5dbc9e0fe5a99b104643753c1b80f88642251c00e4ebcaa64',
-  he: 'ed1716a8750e2037b382db75e888eaafdeb49e91d7a92f1a132d2319cef5c7c4',
-  kanemaru: '0b77c5df1f405900c2bc96d8ad67bf04687933d508aba6510ccd6d181706fe02',
-  pancreas: '9f0663b603ee1edcda59e41e78716edd01444721bfc1c23c2d35baf0187b6ff1',
+  suo: 'a326506e1eede81c6cc1842daf4c34154076bf9792318817125fe298dcfeff2a',
+  garcia: '3eb27c71ae7e5d0c85c3260624e13061a61925e54a3af9776bb02698c7c92645',
+  he: 'd58ddca8c0eaf824cd7c5b99e8f08dbfa2c00099e25c28a829639e6c26fe15d1',
+  kanemaru: 'dbe97741eacf1760b2015e35be3043814ef075962668462f167e6962e2571824',
+  pancreas: '3b8f564fead7ec796ce4b5155876e0eac4de9f7c1a9902c860c311edbe278bd6',
 });
 const EXPECTED_CELL_ORDER_DIMENSION = 3;
 /**
@@ -604,7 +607,10 @@ for (const datasetId of PRESET_DATASET_IDS) {
     assert.equal(store.digest, expected.cellOrderDigest, `${label} cell order`);
 
     const mapping = fingerprint.dataMapping;
-    assert.deepEqual(Object.keys(mapping), ['kind', 'embeddings', 'knn', 'geneNames', 'expression', 'latent', 'vectorFields']);
+    assert.deepEqual(Object.keys(mapping), ['kind', 'embeddings', 'knn', 'geneNames', 'expression', 'log1p', 'highlyVariable', 'latent', 'vectorFields']);
+    // No sample records `uns['log1p']` or a `highly_variable` column.
+    assert.deepEqual(mapping.log1p, {});
+    assert.equal(mapping.highlyVariable, null);
     assert.equal(mapping.kind, 'anndata');
     assert.deepEqual(mapping.embeddings.defaults, {
       '1d': { key: defaults.embedding1d, columns: [0] },

@@ -26,7 +26,7 @@
   "cellucid_producer": {
     "repository": "https://github.com/theislab/cellucid-python",
     "version": "0.9.5",
-    "source_tree_manifest_sha256": "bf6ddbc1e55bccf5171c78c5d95458f60f607364c8e9fa4a4ca9b98b0a3e00a9",
+    "source_tree_manifest_sha256": "90cbe56e1f4ad4edac5c09443d6cb01c803ea2a143e300d218e50d2667acd29c",
     "manifest_definition": "SHA-256 of the `shasum -a 256` manifest over exactly the source_files paths below, in the listed LC_ALL=C order, using repository-relative POSIX paths.",
     "manifest_scope": "Exactly the producer modules cellucid.prepare() executes: the cellucid entries sys.modules holds once cellucid.prepare is imported. Modules outside that set - the Jupyter viewer, the HTTP server, session bundles, the web cache, the command line - cannot reach the bytes prepare() writes, so pinning them reports a difference where the store has none. The builder recomputes the executed set on every run and refuses to build when prepare() reaches a module this list omits, so the list cannot silently stop covering the producer. Every path is named rather than matched by a directory pattern, so a producer file that is renamed or removed fails by name. The interpreter, the exact installed distribution set and the producer release are pinned separately by python_version, requirements_lock_sha256 and version.",
     "source_files": [
@@ -56,7 +56,7 @@
       },
       {
         "path": "src/cellucid/data_mapping.py",
-        "sha256": "09bdf88e1312bf531ed3b29f7e59e548ea59dbe67cc280c2c563eba9737df778"
+        "sha256": "0a0624c76143e78a3e804eadd271f82bcedb8cb3f08deb29294a6d20f327f321"
       },
       {
         "path": "src/cellucid/prepare_data/__init__.py",
@@ -76,7 +76,7 @@
       },
       {
         "path": "src/cellucid/prepare_data/_store.py",
-        "sha256": "7cfa903aabae012f5049c7cb99c9a11929d93e16802bdf3602979ff7c6fbecd9"
+        "sha256": "150def13cb8889853d3e0aed3cd0195261c3922e1bf42d36e8abdbad96cea77d"
       }
     ]
   },

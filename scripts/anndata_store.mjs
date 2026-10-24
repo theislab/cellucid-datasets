@@ -291,10 +291,32 @@ export async function describeStore(storeDir) {
     const match = /^obsm\/([^/]+)\/\.zarray$/.exec(name);
     if (match !== null) obsm[match[1]] = { shape: metadata[name].shape, dtype: metadata[name].dtype };
   }
+  // What the viewer's log1p and highly-variable defaults read: Scanpy's
+  // `uns['log1p']`, the layers, raw.X's dtype and each var column's dtype.
+  const layers = Object.keys(metadata)
+    .map(name => /^layers\/([^/]+)\/\.z(?:array|group)$/.exec(name)?.[1])
+    .filter(name => name !== undefined);
+  const rawX = metadata['raw/X/.zarray'] ?? null;
+  const varColumns = Object.keys(metadata)
+    .map(name => /^var\/([^/]+)\/\.z(array|group)$/.exec(name))
+    .filter(match => match !== null && match[1] !== '_index')
+    .map(([name, key, kind]) => ({
+      key,
+      dtype: kind === 'array'
+        ? (metadata[name].dtype === '|b1' ? 'bool' : String(metadata[name].dtype))
+        : (metadata[`var/${key}/.zattrs`]?.['encoding-type'] === 'nullable-boolean' ? 'boolean' : 'object'),
+    }));
+  const log1p = metadata['uns/log1p/.zgroup'] === undefined && metadata['uns/log1p/.zarray'] === undefined
+    ? null
+    : await readUnsElement(storeDir, metadata, 'uns/log1p');
   return {
     metadata,
     encoding: rootAttributes['encoding-type'],
     x: x === undefined ? null : { encoding: x['encoding-type'], shape: x.shape },
+    layers,
+    raw: rawX === null ? null : { dtype: rawX.dtype },
+    varColumns,
+    log1p,
     obsm,
     title: await readUnsElement(storeDir, metadata, 'uns/title'),
     cellucid: await readUnsElement(storeDir, metadata, 'uns/cellucid', ['outlierQuantiles']),

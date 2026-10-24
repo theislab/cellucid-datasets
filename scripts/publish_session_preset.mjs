@@ -126,12 +126,28 @@ export function defaultAnnDataMapping(described, dataMapping) {
   }
   const enabled = dataMapping.defaultEnabledEmbeddings(entries, slots, { latentKey });
   const hasGraph = described.metadata['obsp/connectivities/.zattrs'] !== undefined;
+  const expression = defaults.expression ?? 'X';
+  // Scanpy's records, read as the viewer reads them (`defaultLog1p`,
+  // `defaultHighlyVariable`); raw.var is not described, so a raw expression
+  // matrix has no highly variable column here.
+  const base = described.log1p?.base;
+  const { log1p } = dataMapping.defaultLog1p({
+    log1p: described.log1p === null ? null : { base: typeof base === 'number' && base > 0 && base !== 1 ? base : null },
+    hasX: described.x !== null,
+    raw: described.raw,
+    layers: described.layers,
+  });
+  const { highlyVariable } = expression === 'raw'
+    ? { highlyVariable: null }
+    : dataMapping.defaultHighlyVariable(described.varColumns);
   return dataMapping.validateDataMapping({
     kind: dataMapping.ANNDATA_KIND,
     embeddings: { enabled, defaults: slots },
     knn: defaults.knn ?? (hasGraph ? 'connectivities' : null),
     geneNames: defaults.geneIdColumn === undefined ? 'index' : `column:${defaults.geneIdColumn}`,
-    expression: defaults.expression ?? 'X',
+    expression,
+    log1p,
+    highlyVariable,
     latent: latentKey,
     vectorFields: dataMapping.defaultVectorBindings(entries, enabled),
   });
