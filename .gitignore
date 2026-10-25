@@ -1,0 +1,23 @@
+.DS_Store
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# Every hidden entry beside the published stores is a build's working state,
+# never a dataset: scripts/pinned_build.py stages a store as
+# .stage.<id>.zarr, sets the replaced one aside as .<id>.zarr.backup-<token>
+# and holds .<id>.zarr.publish.lock while it publishes, and cellucid.prepare()
+# writes .<name>.<pid>.partial before it moves a store into place. One of them
+# surviving a run means an interrupted build, which is resolved by rerunning the
+# builder; committed, a stage or a backup would publish a complete second copy
+# of a dataset that the catalog never names.
+/anndata/.*
+
+# Tool caches (pytest, mypy, ruff, pytest-benchmark)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+
+# Scratch directories a crashed publisher test can leave behind
+.pinned-publish-test-*/

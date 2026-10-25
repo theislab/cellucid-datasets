@@ -1,0 +1,116 @@
+# Cellucid demo datasets
+
+This repository is the public demo-dataset extension of
+[Cellucid](https://github.com/theislab/cellucid). It supplies the sample
+datasets shown in Cellucid’s built-in sample picker; the viewer itself, data
+preparation packages, and user documentation live in the linked ecosystem
+repositories below.
+
+## Explore the examples
+
+Open [cellucid.com](https://www.cellucid.com), choose a sample, and start
+exploring. The catalog includes:
+
+- **Suo** — the default tour of the developing human immune system
+- **Pancreas** — pancreatic endocrinogenesis with 1D, 2D, and 3D UMAPs, a PCA
+  latent space, gene expression, connectivities, and RNA velocity on every UMAP
+- **Garcia, He, and Kanemaru** — developmental atlases of the gonad, the fetal
+  lung, and the fetal heart
+
+The four human atlases each offer a 1D, 2D, and 3D UMAP of one shared
+neighbour graph and the first two components of the unintegrated PCA; Garcia,
+He, and Kanemaru also carry the 2D UMAP shipped in their source files.
+
+These datasets are demonstrations, not templates for storing your own data in
+this repository.
+
+## What is published
+
+Each sample is a Cellucid-ready AnnData, an ordinary AnnData Zarr store that
+any AnnData reader opens (`anndata.read_zarr("anndata/he.zarr")`):
+
+- `anndata/<id>.zarr/` — counts, cell metadata, embeddings, the neighbour
+  graph, and in `uns['cellucid']` the dataset's name, source, citation,
+  launch defaults, and the latent-space outlier quantiles the outlier filter
+  reads;
+- `anndata/<id>.cellucid-session` — the view the sample opens with (Pancreas
+  also enables its PCA view);
+- `anndata/datasets.json` — the catalog the app reads from
+  `https://theislab.github.io/cellucid-datasets/anndata/`.
+
+Zarr folders keep every file far below GitHub’s 100 MB limit without Git LFS.
+GitHub Pages serves the site with Jekyll disabled (`.nojekyll`), which would
+otherwise hide the stores’ `.zarray` and `.zattrs` files.
+
+## Gene names, and the genes these samples leave out
+
+Every sample publishes fewer genes than its source file holds:
+
+| sample | genes in the source | published | left out |
+| --- | --- | --- | --- |
+| Suo | 8,192 | 5,103 | 3,089 |
+| Garcia | 8,192 | 5,754 | 2,438 |
+| He | 8,192 | 5,152 | 3,040 |
+| Kanemaru | 8,192 | 3,691 | 4,501 |
+| Pancreas | 27,998 | 3,753 | 24,245 |
+
+The four human sources are integrated files already cut to 8,192 features
+upstream, and they name genes by Ensembl accession. Their builds translate the
+accessions against a fixed symbol table, with no network lookup: the symbol
+names the gene (the `var` index) and the accession is kept beside it in
+`var['ensembl_gene_id']`. **A gene whose accession has no symbol is not
+published at all**, because an accession alone is not a name a reader would
+type; that includes accessions the table resolves only to another accession.
+
+Pancreas is mouse and arrives with MGI symbols. It publishes only the genes
+its source marks `highly_variable_genes == "True"` that are also nonconstant.
+
+## How reproducible each sample is
+
+All five are rebuilt by pinned scripts that verify their source file by size
+and SHA-256, their environment, the writer’s own code, and a digest of every
+file they write, so a rebuild that differed would stop rather than publish.
+Pancreas downloads its commit-pinned public source. The four human atlases are
+built from integrated files this repository does not hold and may not
+redistribute; `sources/<id>.json` records exactly which bytes rebuild them.
+
+## Publish your own datasets
+
+Start with
+[cellucid-demo-custom-datasets](https://github.com/theislab/cellucid-demo-custom-datasets)
+for small, complete examples and a step-by-step guide to creating and
+hosting your own dataset repository. For private data, large atlases, direct
+AnnData loading, or server-based workflows, use the
+[data-loading guide](https://docs.cellucid.com/en/latest/user_guide/web_app/b_data_loading/index.html).
+
+## Licensing and data terms
+
+`LICENSE` covers this repository's own material — the build scripts, the test
+suites, the catalog, and the starting views — under BSD 3-Clause.
+
+The datasets under `anndata/` are not covered by it. They are redistributed
+from published third-party studies and stay under the terms of those studies.
+Each store names its upstream in `uns['cellucid']` under `source` and
+`citation`. Read those terms at the study before reusing a dataset, and cite
+the study rather than this repository.
+
+## Cellucid ecosystem
+
+- [Web application](https://github.com/theislab/cellucid)
+- [Documentation](https://docs.cellucid.com/en/latest/)
+- [Python package](https://github.com/theislab/cellucid-python)
+- [R package](https://github.com/theislab/cellucid-r)
+- [Community annotation repository](https://github.com/theislab/cellucid-annotation)
+- [Custom dataset repository examples](https://github.com/theislab/cellucid-demo-custom-datasets)
+
+## Citation
+
+<!-- BEGIN cellucid-citation (generated by cellucid-private/scripts/sync_citation.py from CITATION.cff; do not edit) source-sha256=2486463f2b7c8cc656ae41e2df0261c1eb79780c4d635be147215f409b89aa2a body-sha256=5186fc40b9eddfb904fab52bee5362bf27a8d6c3713f9b67b1defa1c68c54d3f -->
+> **Placeholder citation.** The Cellucid preprint is in preparation for bioRxiv and has no DOI yet; the reference below is a placeholder and will be replaced when the preprint is published.
+
+If you use Cellucid, please cite:
+
+Inecik, K. PLACEHOLDER: Cellucid preprint, title to be announced (forthcoming on bioRxiv). *bioRxiv* (in preparation).
+
+BibTeX and other formats: [Citing Cellucid](https://docs.cellucid.com/en/latest/citing.html).
+<!-- END cellucid-citation -->

@@ -1,0 +1,46 @@
+#!/bin/sh
+# Refuse a commit that would publish a starting view the viewer will not apply.
+#
+# This repository is served straight off its default branch, so a commit here is
+# live as soon as it is pushed and the contract workflow can only report on it
+# afterwards. The failure that motivated this hook was a Save State file copied
+# into the repository under the published name: a valid file, the wrong
+# document — too many chunks, the capturing source's identity rather than the
+# catalog's, and a digest the catalog no longer advertised. The site served it,
+# and every sample opened with none of its published view.
+#
+# `tests/session-presets-contract.test.mjs` catches all three in under a second,
+# so it is worth running before the commit exists rather than after it is public.
+# It runs only when a published state or the catalog is actually staged.
+#
+# Install once, per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# `git commit --no-verify` skips it, which is correct: a hook is a reminder for
+# the ordinary case, not an authority. The workflow remains the one that decides.
+
+set -eu
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+case "$staged" in
+  *.cellucid-session*|*anndata/datasets.json*) ;;
+  *) exit 0 ;;
+esac
+
+if ! command -v node >/dev/null 2>&1; then
+  printf 'pre-commit: node is not on PATH, so the published-state contract was not run.\n' >&2
+  printf '            Run the suite yourself before pushing, or commit with --no-verify.\n' >&2
+  exit 1
+fi
+
+printf 'pre-commit: checking the published starting states...\n'
+if ! node --test tests/session-presets-contract.test.mjs; then
+  printf '\npre-commit: refused. A published starting state does not match what the\n' >&2
+  printf '            viewer accepts, or the catalog no longer advertises its digest.\n' >&2
+  printf '            Publish it with:\n\n' >&2
+  printf '              node scripts/publish_session_preset.mjs --dataset <id> --from <save>\n\n' >&2
+  printf '            A Save State file cannot be renamed and committed: see CONTRIBUTING.md.\n' >&2
+  exit 1
+fi

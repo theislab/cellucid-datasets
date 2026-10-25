@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cellucid-datasets</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.45;
+        padding: 20px;
+        max-width: 860px;
+      }
+      code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 1px 4px;
+        border-radius: 4px;
+      }
+      ul {
+        padding-left: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 style="margin: 0 0 8px">cellucid-datasets</h1>
+    <p style="margin: 0 0 12px">
+      Cellucid-ready AnnData Zarr stores for the sample datasets of the
+      <a href="https://www.cellucid.com">Cellucid</a> web app.
+    </p>
+
+    <p style="margin: 0 0 8px">
+      Catalog:
+      <a href="./anndata/datasets.json"><code>anndata/datasets.json</code></a>
+    </p>
+    <h2 style="margin: 0 0 8px; font-size: 16px">Datasets</h2>
+    <div id="datasets">Loading…</div>
+
+    <script type="module">
+      async function main() {
+        const container = document.getElementById('datasets');
+        try {
+          const resp = await fetch('./anndata/datasets.json', { cache: 'no-store' });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const catalog = await resp.json();
+          if (
+            catalog === null ||
+            typeof catalog !== 'object' ||
+            Array.isArray(catalog) ||
+            catalog.schema !== 2 ||
+            typeof catalog.default !== 'string' ||
+            catalog.default.length === 0 ||
+            !Array.isArray(catalog.datasets) ||
+            catalog.datasets.length === 0
+          ) {
+            throw new Error('datasets.json does not satisfy catalog schema 2');
+          }
+          const ul = document.createElement('ul');
+          for (const dataset of catalog.datasets) {
+            if (
+              dataset === null ||
+              typeof dataset !== 'object' ||
+              Array.isArray(dataset) ||
+              typeof dataset.id !== 'string' ||
+              dataset.id.length === 0 ||
+              typeof dataset.path !== 'string' ||
+              dataset.path.length === 0
+            ) {
+              throw new Error('datasets.json contains an invalid dataset entry');
+            }
+            const li = document.createElement('li');
+            const open = document.createElement('a');
+            open.href = `https://www.cellucid.com/?source=local-demo&dataset=${encodeURIComponent(dataset.id)}`;
+            open.textContent = dataset.id;
+            li.appendChild(open);
+            const store = document.createElement('code');
+            store.textContent = `anndata/${dataset.path}`;
+            li.append(' — ', store);
+            if (dataset.id === catalog.default) {
+              li.append(' (default)');
+            }
+            ul.appendChild(li);
+          }
+          container.textContent = '';
+          container.appendChild(ul);
+        } catch (err) {
+          const reason = err instanceof Error
+            ? err.message
+            : 'catalog loading rejected with a non-Error value';
+          container.textContent = `Failed to load datasets.json: ${reason}`;
+        }
+      }
+      void main();
+    </script>
+  </body>
+</html>
