@@ -86,8 +86,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install the AnnData reader
-        run: python -m pip install anndata==0.12.19 zarr==3.1.4 numcodecs==0.16.3
+      # The stores are checked against the producer that wrote them: its
+      # priority order (cellucid.subsample_cells) and restore_original_order.
+      # That producer is cellucid-python at this commit, the 0.9.6 sources
+      # sources/build-environment.json pins by digest.
+      - name: Install the AnnData reader and the producer
+        run: >-
+          python -m pip install anndata==0.12.19 zarr==3.1.4 numcodecs==0.16.3
+          "cellucid @ git+https://github.com/theislab/cellucid-python@eab377a35d6dfaf307727a3dbb4aff486e46087a"
 
       - name: Open every published store with anndata
         run: >-
