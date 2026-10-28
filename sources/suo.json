@@ -445,9 +445,9 @@
         }
       },
       "store": {
-        "file_count": 1830,
-        "total_bytes": 215541873,
-        "sha256": "e1721ce78519ff96f0bda0e7f36b88834e5cb6a7a7b83b8d2eee23dd1eb0f843"
+        "file_count": 6272,
+        "total_bytes": 231462470,
+        "sha256": "f6452037e3c04bdcfb6de8b8350d06f57199a7a31f39600ee197850ef08f373f"
       }
     }
   }

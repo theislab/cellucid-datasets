@@ -44,7 +44,7 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describeStore, readObsm } from './anndata_store.mjs';
+import { describeStore, readArray, readObsm } from './anndata_store.mjs';
 
 const REPOSITORY_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -257,8 +257,17 @@ export async function readPublishedIdentity(datasetId, rule, captured) {
     }
   }
   // The digest is taken over what the viewer holds, which is the layout after
-  // the in-place normalization it runs on load.
+  // the in-place normalization it runs on load, its cells by ascending
+  // original position: the store keeps them in priority order, and
+  // obs['cellucid_original_position'] names each row's original position.
   rule.normalizePositions(positions, dimension);
+  const cellOrder = new Uint32Array(cellCount);
+  if (described.metadata['obs/cellucid_original_position/.zarray'] === undefined) {
+    for (let row = 0; row < cellCount; row++) cellOrder[row] = row;
+  } else {
+    const { values: original } = await readArray(storeDir, described.metadata, 'obs/cellucid_original_position');
+    for (let row = 0; row < cellCount; row++) cellOrder[original[row]] = row;
+  }
 
   const identity = {
     datasetId,
@@ -268,7 +277,7 @@ export async function readPublishedIdentity(datasetId, rule, captured) {
     cellOrder: {
       embedding: { key: embedding.key, columns: [...embedding.columns] },
       dimension,
-      digest: rule.digestCellOrder(positions, dimension),
+      digest: rule.digestCellOrder(positions, dimension, cellOrder),
     },
     dataMapping,
   };

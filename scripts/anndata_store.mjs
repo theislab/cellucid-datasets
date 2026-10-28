@@ -31,6 +31,7 @@ const TYPED_ARRAYS = Object.freeze({
   '|i1': { bytes: 1, read: (view, offset) => view.getInt8(offset), Array: Int8Array },
   '<i2': { bytes: 2, read: (view, offset) => view.getInt16(offset, true), Array: Int16Array },
   '<i4': { bytes: 4, read: (view, offset) => view.getInt32(offset, true), Array: Int32Array },
+  '<u4': { bytes: 4, read: (view, offset) => view.getUint32(offset, true), Array: Uint32Array },
   '<i8': { bytes: 8, read: (view, offset) => Number(view.getBigInt64(offset, true)), Array: Float64Array },
   '|b1': { bytes: 1, read: (view, offset) => view.getUint8(offset) !== 0, Array: Array },
 });

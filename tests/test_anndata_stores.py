@@ -45,7 +45,12 @@ class AnnDataStoreTests(unittest.TestCase):
             [],
             f"anndata reads {dataset_id}.zarr without a warning",
         )
-        return adata
+        # Stored in priority order (checked as stored), compared in the
+        # cells' original order.
+        from cellucid import restore_original_order
+
+        pb.validate_priority_order(adata)
+        return restore_original_order(adata)
 
     def test_catalog_lists_the_five_samples(self) -> None:
         self.assertEqual(DATASET_IDS, ["suo", "garcia", "he", "kanemaru", "pancreas"])

@@ -31,8 +31,8 @@ any AnnData reader opens (`anndata.read_zarr("anndata/he.zarr")`):
 
 - `anndata/<id>.zarr/` — counts, cell metadata, embeddings, the neighbour
   graph, and in `uns['cellucid']` the dataset's name, source, citation,
-  launch defaults, and the latent-space outlier quantiles the outlier filter
-  reads;
+  launch defaults, and the outlier filter's quantiles; cells in priority
+  order (`cellucid.restore_original_order()` restores the source's);
 - `anndata/<id>.cellucid-session` — the view the sample opens with (Pancreas
   also enables its PCA view);
 - `anndata/datasets.json` — the catalog the app reads from

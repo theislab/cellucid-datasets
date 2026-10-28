@@ -6,7 +6,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
 
-import { describeStore, readObsm } from '../scripts/anndata_store.mjs';
+import { describeStore, readArray, readObsm } from '../scripts/anndata_store.mjs';
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const ANNDATA_ROOT = path.join(REPOSITORY_ROOT, 'anndata');
@@ -371,15 +371,22 @@ function digestCellOrder(positions) {
   return (high >>> 0).toString(16).padStart(8, '0') + (low >>> 0).toString(16).padStart(8, '0');
 }
 
-/** The cell-order digest of one store's default 3-D embedding, as the viewer holds it. */
+/**
+ * The cell-order digest of one store's default 3-D embedding, as the viewer
+ * holds it: the cells by ascending original position
+ * (`obs['cellucid_original_position']`, the store being in priority order),
+ * so the digest names the cells whatever order the store keeps them in.
+ */
 async function digestStoreCellOrder(datasetId) {
   const storeDir = path.join(ANNDATA_ROOT, `${datasetId}.zarr`);
   const described = await describeStore(storeDir);
   const key = described.cellucid.defaults.embedding3d;
   const obsm = await readObsm(storeDir, described.metadata, key);
+  const { values: original } = await readArray(storeDir, described.metadata, 'obs/cellucid_original_position');
+  assert.equal(original.length, obsm.cells, `${datasetId}: one original position per cell`);
   const positions = new Float32Array(obsm.cells * 3);
-  for (let cell = 0; cell < obsm.cells; cell++) {
-    for (let axis = 0; axis < 3; axis++) positions[cell * 3 + axis] = obsm.values[cell * obsm.width + axis];
+  for (let row = 0; row < obsm.cells; row++) {
+    for (let axis = 0; axis < 3; axis++) positions[original[row] * 3 + axis] = obsm.values[row * obsm.width + axis];
   }
   normalizePositions(positions);
   return { described, key, digest: digestCellOrder(positions) };

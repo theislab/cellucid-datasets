@@ -2,7 +2,7 @@
   "schema_version": 2,
   "purpose": "The one environment every published sample store is built in. scripts/pinned_build.py checks all of it before a source is read, and both builders refuse to run anywhere it does not hold.",
   "requirements_lock": "requirements-build.lock",
-  "requirements_lock_sha256": "fc363349688faca1621b1113c145135b2d085845cae7eb0ddf21ecaeb0a45625",
+  "requirements_lock_sha256": "bf1db73c2ab0fb417bb02aa135dac99de6cbf34bc1e991d8a8a0b7247968bb91",
   "python_version": "3.12.13",
   "implementation": "CPython",
   "platform_system": "Darwin",
@@ -25,18 +25,18 @@
   "root_random_seed": 0,
   "cellucid_producer": {
     "repository": "https://github.com/theislab/cellucid-python",
-    "version": "0.9.5",
-    "source_tree_manifest_sha256": "9b67b2d9bc0908da1cd62c2f3ff84197f635e8eca25bbe8e9e4f487152b86b9d",
+    "version": "0.9.6",
+    "source_tree_manifest_sha256": "789c7aa06c82ed288924a3bb2b6e0281502f7da19a810de3a4427fb398726b30",
     "manifest_definition": "SHA-256 of the `shasum -a 256` manifest over exactly the source_files paths below, in the listed LC_ALL=C order, using repository-relative POSIX paths.",
     "manifest_scope": "Exactly the producer modules cellucid.prepare() executes: the cellucid entries sys.modules holds once cellucid.prepare is imported. Modules outside that set - the Jupyter viewer, the HTTP server, session bundles, the web cache, the command line - cannot reach the bytes prepare() writes, so pinning them reports a difference where the store has none. The builder recomputes the executed set on every run and refuses to build when prepare() reaches a module this list omits, so the list cannot silently stop covering the producer. Every path is named rather than matched by a directory pattern, so a producer file that is renamed or removed fails by name. The interpreter, the exact installed distribution set and the producer release are pinned separately by python_version, requirements_lock_sha256 and version.",
     "source_files": [
       {
         "path": "src/cellucid/__init__.py",
-        "sha256": "cebf4bc26be6940b9aa55fc5c33f5069dcde68015603625f780ebc8880b6b74d"
+        "sha256": "f5db59575b941ea1cd1720b7ca536df3b5700f7bf68be0afeb925a74d022e139"
       },
       {
         "path": "src/cellucid/_anndata_files.py",
-        "sha256": "b4c51cde9475225da3d8ac44775ace80e24af29a6bd60eac1d494886cb6f5d0b"
+        "sha256": "1ed6348374372b58d6d37a642625fded7ec795d641b10cc4d81fb18ed6293df0"
       },
       {
         "path": "src/cellucid/_console.py",
@@ -64,7 +64,7 @@
       },
       {
         "path": "src/cellucid/prepare_data/__init__.py",
-        "sha256": "6f10725a7d11378fd02ad2546b3a024126fb366e419d927d889986605c63b16b"
+        "sha256": "d4c4180f77eb20bd0dd34fa35d75d22a30843963cc09d093aed183cc0c39ef33"
       },
       {
         "path": "src/cellucid/prepare_data/_data.py",
@@ -72,11 +72,11 @@
       },
       {
         "path": "src/cellucid/prepare_data/_inputs.py",
-        "sha256": "dd86447284a98a806dea2919a4cae8ed5d219deed87efb8a0fcb9414e68ae7db"
+        "sha256": "d946b3fcc6ab6da7ec5501b455f9ff8054e8e2d8c7ee9e3011d16b881f883957"
       },
       {
         "path": "src/cellucid/prepare_data/_mudata.py",
-        "sha256": "602fad1f4b48bd9630d9fb0691c20856a527af74daae7a5121e2754d7aae43db"
+        "sha256": "0a8f6ee348a4962d3fcae6530532a0442e5a6b55796f4b87d3236c8fbe57f4ce"
       },
       {
         "path": "src/cellucid/prepare_data/_outliers.py",
@@ -84,11 +84,19 @@
       },
       {
         "path": "src/cellucid/prepare_data/_prepare.py",
-        "sha256": "e86bf54a7451c683610484616769df9c59600bf2f459a9ea8cc2364eca1aeb82"
+        "sha256": "525d7c76764bf6fe17a61b982f81d572292b02a30a5bd38b3ba5cafa4d61dddc"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_priority.py",
+        "sha256": "7996e147769d900b6f0efd03cfb1baf7562b34d5ae20ede0bc2942783ea942a3"
       },
       {
         "path": "src/cellucid/prepare_data/_store.py",
-        "sha256": "2d05b455bd3683bb4d6627bff3bd9655c05b6ae94b04269353f39f9e3c89dcd3"
+        "sha256": "838914fa63706fa7b0f4f17d90db71e39571346ead8353ca9dba592c64bdd423"
+      },
+      {
+        "path": "src/cellucid/subsample.py",
+        "sha256": "b9e04c72607caeda82acc8ab35e1c5336d14b4436fbb727269eed08524302af5"
       }
     ]
   },

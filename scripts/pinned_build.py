@@ -905,6 +905,45 @@ def validate_outlier_quantiles(
     return digests
 
 
+def validate_priority_order(adata: Any) -> None:
+    """The cells as ``prepare()`` stores them: by ascending priority under seed 0.
+
+    The Cellucid-ready AnnData specification's priority order: every row's
+    original position a permutation whose first ``k`` rows are the cells a
+    ``uniform`` subsample of ``k`` under the file's seed keeps; the record's
+    ``nObs`` the cell count (what a reader verifies the record by); the prefix
+    levels each ``floor(previous * 3 / 4)`` from the cell count; each gene's
+    prefix counts its stored values below each level.
+    """
+    import numpy as np
+    from cellucid import subsample_cells
+
+    n_obs = int(adata.n_obs)
+    priority = dict(adata.uns["cellucid"].get("priority", {}))
+    require_equal("uns['cellucid']['priority'] seed", int(priority.get("seed", -1)), 0)
+    require_equal("uns['cellucid']['priority'] specVersion", int(priority.get("specVersion", -1)), 1)
+    require_equal("uns['cellucid']['priority'] nObs", int(priority.get("nObs", -1)), n_obs)
+    original = adata.obs["cellucid_original_position"].to_numpy()
+    require_equal("obs['cellucid_original_position'] dtype", str(original.dtype), "uint32")
+    if not np.array_equal(np.sort(original), np.arange(n_obs)):
+        raise ValueError("obs['cellucid_original_position'] must hold every position once.")
+    for k in sorted({1, max(1, n_obs // 100), max(1, n_obs // 10), max(1, n_obs // 2)}):
+        if k < n_obs and not np.array_equal(np.sort(original[:k]), subsample_cells(n_obs, n_cells=k, seed=0)):
+            raise ValueError(f"The first {k} rows are not the cells a uniform subsample of {k} keeps.")
+    levels: list[int] = []
+    level = n_obs
+    while (level := level * 3 // 4) >= 1:
+        if not levels or levels[-1] != level:
+            levels.append(level)
+    require_equal("uns['cellucid']['priority'] levels", np.asarray(priority["levels"]).tolist(), levels[::-1])
+    counts = adata.varm["cellucid_prefix_counts"]
+    matrix = adata.X
+    for gene in range(matrix.shape[1]):
+        rows = matrix.indices[matrix.indptr[gene] : matrix.indptr[gene + 1]]
+        if not np.array_equal(counts[gene], np.searchsorted(rows, levels[::-1])):
+            raise ValueError(f"varm['cellucid_prefix_counts'] of gene {gene} does not count its stored values.")
+
+
 def validate_store(
     stage: Path,
     *,
@@ -937,6 +976,12 @@ def validate_store(
         [f"{item.category.__name__}: {item.message}" for item in captured],
         [],
     )
+    # The cells are stored in priority order: checked as stored, then
+    # compared with what was written in the order it was written.
+    validate_priority_order(adata)
+    from cellucid import restore_original_order
+
+    adata = restore_original_order(adata)
 
     require_equal("obs names", adata.obs_names.tolist(), list(expected["obs_names"]))
     require_equal("var names", adata.var_names.tolist(), list(expected["var_names"]))

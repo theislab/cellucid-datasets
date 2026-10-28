@@ -291,8 +291,14 @@ for (const datasetId of EXPECTED_DATASET_IDS) {
       assert.equal(shape[0], nObs, `obsm/${key} must hold one row per cell`);
     }
 
-    const cellucid = described.cellucid;
+    // The cells in priority order (seed 0), as prepare() writes them
+    // (tests/test_anndata_stores.py checks the order itself).
+    const { priority, ...cellucid } = described.cellucid;
     assert.deepEqual(cellucid, contract.uns_cellucid, "uns['cellucid'] must be the one sources/ records");
+    assert.equal(Number(priority?.seed), 0, "uns['cellucid']['priority'] must name seed 0");
+    assert.equal(Number(priority?.specVersion), 1, "uns['cellucid']['priority'] must follow version 1 of the subsampling specification");
+    assert.equal(Number(priority?.nObs), nObs, "uns['cellucid']['priority'] must record the file's cell count (nObs)");
+    assert.ok(Array.isArray(priority.levels) && priority.levels.length > 0, "uns['cellucid']['priority'] must list its prefix levels");
     // The latent space's outlier quantiles: one float32 vector per cell for
     // every categorical field prepare() scores (the specification, §2).
     if (cellucid.defaults?.latentKey !== undefined) {

@@ -152,10 +152,8 @@ const RETIRED_PATH_LANGUAGE =
 const RETIRED_PATH_LANGUAGE_EXCEPTIONS = Object.freeze([
   Object.freeze({
     covers: 'requirements-build.lock',
-    reason:
-      'pins two PyPI distributions whose published names are Deprecated and '
-      + 'legacy-api-wrap',
-    evidence: Object.freeze([/^Deprecated==\d/m, /^legacy-api-wrap==\d/m]),
+    reason: 'pins a PyPI distribution whose published name is legacy-api-wrap',
+    evidence: Object.freeze([/^legacy-api-wrap==\d/m]),
   }),
   Object.freeze({
     covers: 'scripts/build_pancreas.py',
