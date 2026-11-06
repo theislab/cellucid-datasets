@@ -1,0 +1,129 @@
+{
+  "schema_version": 2,
+  "purpose": "The one environment every published sample store is built in. scripts/pinned_build.py checks all of it before a source is read, and both builders refuse to run anywhere it does not hold.",
+  "requirements_lock": "requirements-build.lock",
+  "requirements_lock_sha256": "bf1db73c2ab0fb417bb02aa135dac99de6cbf34bc1e991d8a8a0b7247968bb91",
+  "python_version": "3.12.13",
+  "implementation": "CPython",
+  "platform_system": "Darwin",
+  "platform_machine": "arm64",
+  "zlib_runtime_version": "1.2.12",
+  "blas": {
+    "internal_api": "openblas",
+    "version": "0.3.23.dev",
+    "architecture": "armv8",
+    "threading_layer": "pthreads"
+  },
+  "thread_environment": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1"
+  },
+  "python_hash_seed": "0",
+  "root_random_seed": 0,
+  "cellucid_producer": {
+    "repository": "https://github.com/theislab/cellucid-python",
+    "version": "0.9.7",
+    "source_tree_manifest_sha256": "40e219eeceeb8e6f356959a99336023f00c60b5831d18019ab807474f1cf186b",
+    "manifest_definition": "SHA-256 of the `shasum -a 256` manifest over exactly the source_files paths below, in the listed LC_ALL=C order, using repository-relative POSIX paths.",
+    "manifest_scope": "Exactly the producer modules cellucid.prepare() executes: the cellucid entries sys.modules holds once cellucid.prepare is imported. Modules outside that set - the Jupyter viewer, the HTTP server, session bundles, the web cache, the command line - cannot reach the bytes prepare() writes, so pinning them reports a difference where the store has none. The builder recomputes the executed set on every run and refuses to build when prepare() reaches a module this list omits, so the list cannot silently stop covering the producer. Every path is named rather than matched by a directory pattern, so a producer file that is renamed or removed fails by name. The interpreter, the exact installed distribution set and the producer release are pinned separately by python_version, requirements_lock_sha256 and version.",
+    "source_files": [
+      {
+        "path": "src/cellucid/__init__.py",
+        "sha256": "8e8211cd329dd8a9a5d5746b0dcf2896a1ad48a9af30e42684d891545a0090af"
+      },
+      {
+        "path": "src/cellucid/_anndata_files.py",
+        "sha256": "e785b6c786b21f76af51a8dad37d6cc2beee1d28c0da12a4d0a236239e6b59c5"
+      },
+      {
+        "path": "src/cellucid/_console.py",
+        "sha256": "f882fe6edf63383ab33cd207aa4b7c795b5e3e6c3ac8483add73482c316c6e3e"
+      },
+      {
+        "path": "src/cellucid/_contracts.py",
+        "sha256": "933513c8efd390f056850413a6497990dfd54cb9ac4f0879300b592f5eae0bab"
+      },
+      {
+        "path": "src/cellucid/_launch_defaults.py",
+        "sha256": "236e7a5f42f321a2c3fc8fc932b28398b6a9cdc333b73c2dd773b9ac2c946f7a"
+      },
+      {
+        "path": "src/cellucid/_non_finite.py",
+        "sha256": "7a51e8cea4482b2f2288615396243c6153ef3478e926ad7156449ffc1817f44e"
+      },
+      {
+        "path": "src/cellucid/_plural.py",
+        "sha256": "60966931435053381d724a161f2e11d279ee1b8e3dd4129cb8b513c8826ff8dd"
+      },
+      {
+        "path": "src/cellucid/_scratch.py",
+        "sha256": "130f13beef29b38fd241c7f00ca8db21c6db5c968bc74814e6535edc5534f68a"
+      },
+      {
+        "path": "src/cellucid/_source_arrays.py",
+        "sha256": "9dc3f4e8e42123620a177e709c8b73860a5fe4adc85053c83584efc16e40ff6b"
+      },
+      {
+        "path": "src/cellucid/data_mapping.py",
+        "sha256": "8b934e1dbb7ef60ba304e8d88b025f97022ab575d5055e57b36aad48215e89ba"
+      },
+      {
+        "path": "src/cellucid/prepare_data/__init__.py",
+        "sha256": "d4c4180f77eb20bd0dd34fa35d75d22a30843963cc09d093aed183cc0c39ef33"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_data.py",
+        "sha256": "ab3ab77e2cbc652bd445a465b31550dfa2dc26ba2989fd1137d0386be533ffb8"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_gene_major.py",
+        "sha256": "dbd4a9ef872013a4b429ba0f184ab85b1635415c11d7651419456365a0ba6531"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_inputs.py",
+        "sha256": "2148bfba00fdcb2bc53631fffbc454c4db20789f05dc4655727969fd87e1cc2e"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_mudata.py",
+        "sha256": "a70967fd1ba0c85d45d2be1d3d892607e64c05dca4aa9504be974db8c634c6d2"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_outliers.py",
+        "sha256": "aa0caf2d773a9a61a09544044e62745a44a3893405f196a775b3d8a2baa7ac8a"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_prepare.py",
+        "sha256": "5dddd40845383c3aea3aa95bc75ca1c8bcc7591eab069657ca17a7db1f574532"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_priority.py",
+        "sha256": "dc9704e65dccfa2130c3dc3363769316b5223bbe4fbfb54243ad6a034d482ae7"
+      },
+      {
+        "path": "src/cellucid/prepare_data/_store.py",
+        "sha256": "f20e2d2858e4442179bb51a62dd5d49a1d2e2a6e0a87133f3253b8123dafedf3"
+      },
+      {
+        "path": "src/cellucid/subsample.py",
+        "sha256": "2747bc43f8248802a6f2a384409971b148dc0c9c05b6e300196e310fa6bcd9f7"
+      }
+    ]
+  },
+  "packages": {
+    "anndata": "0.12.19",
+    "h5py": "3.16.0",
+    "numba": "0.66.0",
+    "numpy": "1.26.4",
+    "pandas": "2.3.3",
+    "pynndescent": "0.6.0",
+    "scanpy": "1.11.5",
+    "scikit-learn": "1.9.0",
+    "scipy": "1.16.3",
+    "scvelo": "0.3.4",
+    "threadpoolctl": "3.6.0",
+    "umap-learn": "0.5.12"
+  }
+}
