@@ -1,0 +1,142 @@
+name: Dataset contracts
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ["22", "24", "26"]
+    # The contracts find cellucid-python and the viewer beside this checkout,
+    # and a sibling that is missing is a failure here, not a skip.
+    env:
+      CELLUCID_REQUIRE_SIBLINGS: "1"
+    defaults:
+      run:
+        working-directory: cellucid-datasets
+
+    steps:
+      - name: Check out the exact source
+        uses: actions/checkout@v7
+        with:
+          path: cellucid-datasets
+
+      # The documentation site holds the table of every sample's upstream
+      # study, which the catalog contract compares with the build records.
+      - name: Check out cellucid-python's documentation
+        uses: actions/checkout@v7
+        with:
+          repository: theislab/cellucid-python
+          ref: main
+          path: cellucid-python
+          filter: blob:none
+          sparse-checkout: |
+            docs/user_guide/web_app/b_data_loading/12_sample_dataset_provenance.md
+          sparse-checkout-cone-mode: false
+
+      # The session-preset contracts ask the viewer's own modules whether it
+      # accepts each preset: its source, with the libraries, codecs and workers
+      # those modules import and the reader helper the publisher runs.
+      - name: Check out the viewer's modules
+        uses: actions/checkout@v7
+        with:
+          repository: theislab/cellucid
+          ref: main
+          path: cellucid
+          filter: blob:none
+          sparse-checkout: |
+            assets/external/
+            assets/js/
+            assets/wasm/
+            assets/workers/
+            tests/helpers/
+            package.json
+          sparse-checkout-cone-mode: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+
+      - name: Validate the complete catalog and repository layout
+        run: >-
+          node --test
+          tests/catalog-contract.test.mjs
+          tests/repository-organization-contract.test.mjs
+          tests/session-presets-contract.test.mjs
+
+  publisher:
+    # The staged publisher in scripts/pinned_build.py, which both sample
+    # builders publish through, is POSIX-only by construction: it fsyncs the
+    # parent directory through os.open(directory, O_RDONLY), which Windows
+    # refuses, and it checks filesystem ownership through os.getuid(). Its
+    # suite is therefore run on the two platforms a store can actually be
+    # published from. The module imports nothing outside the standard library
+    # at import time -- every numerical import is function-local, and the suite
+    # exercises only the stage/validate/publish helpers -- so this job installs
+    # no dependencies.
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - name: Check out the exact source
+        uses: actions/checkout@v7
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Validate the staged publisher preserves the prior store
+        run: >-
+          python -m unittest
+          tests/test_pinned_build_publish.py
+
+  stores:
+    # Every published store opened the way a user opens it, with anndata, at
+    # the versions requirements-build.lock pins for the builds that wrote them.
+    name: AnnData stores / Python 3.12
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the exact source
+        uses: actions/checkout@v7
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # The stores are checked against cellucid-python as it is now, its
+      # main: the priority order (cellucid.subsample_cells) and
+      # restore_original_order. A store the current package no longer reads
+      # as written fails here, and is rebuilt by its build.
+      - name: Install the AnnData reader and cellucid-python's main
+        run: >-
+          python -m pip install anndata==0.12.19 zarr==3.1.4 numcodecs==0.16.3
+          "cellucid @ git+https://github.com/theislab/cellucid-python@main"
+
+      - name: Open every published store with anndata
+        run: >-
+          python -m unittest
+          tests/test_anndata_stores.py

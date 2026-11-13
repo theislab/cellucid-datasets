@@ -1,0 +1,23 @@
+{
+  "shape": [
+    3754
+  ],
+  "chunks": [
+    3754
+  ],
+  "dtype": "<i4",
+  "fill_value": 0,
+  "order": "C",
+  "filters": [
+    {
+      "id": "shuffle",
+      "elementsize": 4
+    }
+  ],
+  "dimension_separator": ".",
+  "compressor": {
+    "id": "zlib",
+    "level": 6
+  },
+  "zarr_format": 2
+}

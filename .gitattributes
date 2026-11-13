@@ -1,0 +1,3 @@
+* text=auto eol=lf
+*.cellucid-session -text
+/anndata/*.zarr/** -text

@@ -1,0 +1,56 @@
+{
+  "schema": 2,
+  "default": "suo",
+  "datasets": [
+    {
+      "id": "suo",
+      "name": "Developing human immune system (Suo)",
+      "path": "suo.zarr/",
+      "session": {
+        "path": "suo.cellucid-session",
+        "bytes": 6416,
+        "sha256": "0dd40ca8990fd0cd09d233e66fc959d892bfd2dcf4672d521f509c1f34281ae5"
+      }
+    },
+    {
+      "id": "garcia",
+      "name": "Developing human gonad (Garcia)",
+      "path": "garcia.zarr/",
+      "session": {
+        "path": "garcia.cellucid-session",
+        "bytes": 6435,
+        "sha256": "0f81907e3a9ce25e6b766fe1550029e7cf241bb7da6dc7994ecaacaa1ab36db7"
+      }
+    },
+    {
+      "id": "he",
+      "name": "Developing human lung (He)",
+      "path": "he.zarr/",
+      "session": {
+        "path": "he.cellucid-session",
+        "bytes": 6423,
+        "sha256": "36c79c8c6f07031bb4a2ef6ab7556fd9ef016e001f2c2ae10860f1c0ca5e997d"
+      }
+    },
+    {
+      "id": "kanemaru",
+      "name": "Developing human heart (Kanemaru)",
+      "path": "kanemaru.zarr/",
+      "session": {
+        "path": "kanemaru.cellucid-session",
+        "bytes": 6455,
+        "sha256": "29412d2bf0ebf03425ca7a231a21adf157385a0b5ab6647672a4fbcae327464f"
+      }
+    },
+    {
+      "id": "pancreas",
+      "name": "Pancreatic endocrinogenesis (scVelo)",
+      "path": "pancreas.zarr/",
+      "session": {
+        "path": "pancreas.cellucid-session",
+        "bytes": 6670,
+        "sha256": "4084cfeac1ef1a3d5b86bcbe326845131ba98c19051938a5ecde46fd831e86b0"
+      }
+    }
+  ]
+}
